@@ -219,7 +219,7 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									Script[ComBot].VariableScope.Miner.Config:SetContainer_Name[${This.Text}]
 								</OnChange>
 								<OnMouseEnter>
-									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText["This field is used to supply ComBot with an identifier for your dropoff location.  If you are delivering to an Orca, this needs to contain the name of the pilot flying your Orca.  If you are delivering to a Player Owned Station structure, this needs to contain the structure's name.  This field is also used to specify the prefix for corporate bookmarks created using the Corporate Jetcan mode."]
+									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText["This field is used to supply ComBot with an identifier for your dropoff location.  If you are delivering to an Fleet Hangar, this needs to contain the name of the pilot flying the ship.  If you are delivering to a Player Owned Station structure, this needs to contain the structure's name.  This field is also used to specify the prefix for corporate bookmarks created using the Corporate Jetcan mode."]
 								</OnMouseEnter>
 								<OnMouseExit>
 									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText[""]
@@ -247,6 +247,17 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									{
 										case Jetcan
 											This:AddItem[Fleet Jetcan]
+											switch ${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}
+											{
+												case Corporate Bookmark Jetcan
+													UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
+													UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
+													UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Jetcan Bookmark Prefix]
+													break
+												default
+												UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
+												UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
+											}
 											break
 										case Corporation Hangar
 											This:AddItem[Corporation Folder 1]
@@ -266,42 +277,11 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 											This:AddItem[Corporation Folder 6]
 											This:AddItem[Corporation Folder 7]
 											break
-										case Orca
-											This:AddItem[Corporation Folder 1]
-											This:AddItem[Corporation Folder 2]
-											This:AddItem[Corporation Folder 3]
-											This:AddItem[Corporation Folder 4]
-											This:AddItem[Corporation Folder 5]
-											This:AddItem[Corporation Folder 6]
-											This:AddItem[Corporation Folder 7]
-											break
 									}
 									This.ItemByText["${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}"]:Select
-									switch ${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}
-									{
-										case Corporate Bookmark Jetcan
-											UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Jetcan Bookmark Prefix]
-											break
-										default
-											UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
-											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
-									}
 								</OnLoad>
 								<OnSelect>
 									Script[ComBot].VariableScope.Miner.Config:SetDropoff_SubType[${This.SelectedItem.Text}]
-									switch ${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}
-									{
-										case Corporate Bookmark Jetcan
-											UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Jetcan Bookmark Prefix]
-											break
-										default
-											UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
-											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
-									}
 								</OnSelect>
 								<OnMouseEnter>
 									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText["This field is used to further configure your dropoff type for types that have additional options, like Corporate Hangars and Jetcans."]
@@ -323,16 +303,16 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									{
 										if ${Script[ComBot].VariableScope.Miner.Config.OrcaMode}
 										{
-											This:SetText[Corp Hangar Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[ByName, Inventory].ChildCapacity[ShipCorpHangar]}].Round} m3]
+											This:SetText[Fleet Hangar Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipFleetHangar].Capacity}].Round} m3]
 										}
 										else
 										{
-											This:SetText[OreHold Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[ByName, Inventory].ChildCapacity[ShipOreHold]}].Round} m3]
+											This:SetText[OreHold Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipOreHold].Capacity}].Round} m3]
 										}
 									}
 									else
 									{
-										This:SetText[Cargo Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${MyShip.CargoCapacity}].Round} m3]
+										This:SetText[Cargo Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].Capacity}].Round} m3]
 									}
 								</OnLoad>
 							</Text>						 
@@ -352,16 +332,16 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									{
 										if ${Script[ComBot].VariableScope.Miner.Config.OrcaMode}
 										{
-											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Corp Hangar Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[ByName, Inventory].ChildCapacity[ShipCorpHangar]}].Round} m3]
+											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Fleet Hangar Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipFleetHangar].Capacity}].Round} m3]
 										}
 										else
 										{
-											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[OreHold Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[ByName, Inventory].ChildCapacity[ShipOreHold]}].Round} m3]
+											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[OreHold Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipOreHold].Capacity}].Round} m3]
 										}
 									}
 									else
 									{
-										UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Cargo Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${MyShip.CargoCapacity}].Round} m3]
+										UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Cargo Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].Capacity}].Round} m3]
 									}
 								</OnChange>
 								<OnMouseEnter>
@@ -390,7 +370,7 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 								<Height>85%</Height>
 								<Items>
 									<Item>Personal Hangar</Item>
-									<Item>Orca</Item>
+									<Item>Fleet Hangar</Item>
 									<Item>Container</Item>
 									<Item>Jetcan</Item>
 									<Item>No Dropoff</Item>
@@ -411,19 +391,17 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 											UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											break
-										case Orca
+										case Fleet Hangar
 											UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Orca Pilot Name]
-											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Corporate Folder]
+											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Fleet Hangar Pilot Name]
 											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
+											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
+											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[Threshold@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[DropoffTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											UIElement[Dropoff@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											UIElement[DropoffList@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner].ItemByText[${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}]:Select
 											break
 										case Container
 											UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
@@ -436,13 +414,10 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 											UIElement[Threshold@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[DropoffTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[Dropoff@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner].ItemByText[${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}]:Select
 											break
 										case Jetcan
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner].ItemByText[${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}]:Select
 											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner].ItemByText[${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}]:Select
 											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Jetcan Type]
 											UIElement[Threshold@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
@@ -465,7 +440,6 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 											UIElement[DropoffTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Station Bookmark]
 											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner].ItemByText[${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}]:Select
 											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Corporate Folder]
 											UIElement[Threshold@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
@@ -491,27 +465,20 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 											UIElement[Dropoff@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
+											Script[ComBot].VariableScope.Miner.Config:SetDropoff_SubType[\"\"]
 											break
-										case Orca
+										case Fleet Hangar
 											UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:AddItem[Corporation Folder 1]
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:AddItem[Corporation Folder 2]
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:AddItem[Corporation Folder 3]
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:AddItem[Corporation Folder 4]
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:AddItem[Corporation Folder 5]
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:AddItem[Corporation Folder 6]
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:AddItem[Corporation Folder 7]
-											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Orca PilotName]
-											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Corporate Folder]
+											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Fleet Hangar PilotName]
 											UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
+											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
+											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[Threshold@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[DropoffTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											UIElement[Dropoff@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											UIElement[DropoffList@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner].ItemByText[${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}]:Select
+											Script[ComBot].VariableScope.Miner.Config:SetDropoff_SubType[\"\"]
 											break
 										case Container
 											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:AddItem[Corporation Folder 1]
@@ -539,13 +506,23 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner].ItemByText[${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}]:Select
 											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
-											UIElement[DropoffSubType@DropoffFrame@Miner_Frame@ComBot_Miner].ItemByText[${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}]:Select
 											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Jetcan Type]
 											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[Threshold@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
 											UIElement[DropoffTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											UIElement[Dropoff@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
 											UIElement[DropoffList@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
+											switch ${Script[ComBot].VariableScope.Miner.Config.Dropoff_SubType}
+											{
+												case Corporate Bookmark Jetcan
+													UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
+													UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Show
+													UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Jetcan Bookmark Prefix]
+													break
+												default
+												UIElement[Dropoff_Container@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
+												UIElement[Dropoff_ContainerTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
+											}
 											break
 										case No Dropoff
 											UIElement[DropoffSubTypeTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:Hide
@@ -804,7 +781,7 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 							
 							<Text name='MaxLockTitle'> 
 								<X>34%</X> 
-								<Y>33%</Y> 
+								<Y>24%</Y> 
 								<Width>32%</Width> 
 								<Height>10%</Height> 
 								<Alignment>Center</Alignment>
@@ -818,7 +795,7 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 							</Text>						 
 							<Slider name='MaxLock'> 
 								<X>34%</X> 
-								<Y>40%</Y> 
+								<Y>31%</Y> 
 								<Width>32%</Width> 
 								<Height>10%</Height> 
 								<Border>1</Border>
@@ -842,6 +819,62 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 								</OnMouseExit>
 							</Slider>						 
 
+							<Checkbox name='ShortCycle'>
+								<X>34%</X>
+								<Y>45%</Y>
+								<Width>32%</Width> 
+								<Height>9%</Height> 
+								<Text>Short cycle lasers at ${Script[ComBot].VariableScope.Miner.Config.ShortCyclePercent}%</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Miner.Config.IceMining}
+									{
+										This:Hide
+									}
+									if ${Script[ComBot].VariableScope.Miner.Config.ShortCycle}
+									{
+										This:SetChecked
+									}
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Miner.Config:SetShortCycle[${This.Checked}]
+
+									if ${This.Checked}
+									{
+										UIElement[ShortcyclePercent@MiningFrame@Miner_Frame@ComBot_Miner]:Show
+									}
+									else
+									{
+										UIElement[ShortcyclePercent@MiningFrame@Miner_Frame@ComBot_Miner]:Hide
+									}
+								</OnLeftClick>
+							</Checkbox>				 
+							<Slider name='ShortcyclePercent'> 
+								<X>34%</X> 
+								<Y>55%</Y> 
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Border>1</Border>
+								<OnLoad>
+									This:SetRange[100]
+									This:SetValue[${Script[ComBot].VariableScope.Miner.Config.ShortCyclePercent}]
+									if !${Script[ComBot].VariableScope.Miner.Config.ShortCycle}
+									{
+										This:Hide
+									}
+								</OnLoad>
+								<OnChange>
+									Script[ComBot].VariableScope.Miner.Config:SetShortCyclePercent[${This.Value}]
+									UIElement[ShortCycle@MiningFrame@Miner_Frame@ComBot_Miner]:SetText[Short cycle lasers at ${Script[ComBot].VariableScope.Miner.Config.ShortCyclePercent}%]
+								</OnChange>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText["This value is used to determine when to short cycle mining lasers"]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText[""]
+								</OnMouseExit>
+							</Slider>						 
+							
+							
 							<Text name='OrePriorityTitle'> 
 								<X>67%</X> 
 								<Y>1%</Y> 
@@ -871,7 +904,7 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									variable int counter
 									variable collection:bool selected
 
-									if ${UIElement[obj_MinerIceMining@@Miner_Frame@ComBot_Miner].Checked}
+									if ${UIElement[obj_MinerIceMining@MiningFrame@Miner_Frame@ComBot_Miner].Checked}
 									{
 										Ores:Set[${LavishSettings[ComBotSettings].FindSet[${Me.Name}].FindSet[Miner].FindSet[ICE_Types]}]
 										Ores:Clear
@@ -887,6 +920,10 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									}
 									else
 									{
+										if !${LavishSettings[ComBotSettings].FindSet[${Me.Name}].FindSet[Miner].FindSet[ORE_Types](exists)}
+										{
+											LavishSettings[ComBotSettings].FindSet[${Me.Name}].FindSet[Miner]:AddSet[ORE_Types]
+										}
 										Ores:Set[${LavishSettings[ComBotSettings].FindSet[${Me.Name}].FindSet[Miner].FindSet[Ore_Types]}]
 										Ores:Clear
 										for ( counter:Set[1] ; ${counter} &lt;= ${UIElement[obj_MinerOrePriority@MiningFrame@Miner_Frame@ComBot_Miner].SelectedItems} ; counter:Inc )
@@ -1488,9 +1525,33 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 								</OnMouseExit>
 							</Checkbox>							
 
+							<Checkbox name='MineAlone'>
+								<X>1%</X>
+								<Y>20%</Y>
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Text>Mine Alone</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Miner.Config.MineAlone}
+									{
+										This:SetChecked
+
+									}
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Miner.Config:SetMineAlone[${This.Checked}]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText["When checked, ComBot will verify you are alone when switching belts.  If another ship which is not in your fleet is in the belt, it will move to another belt."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>							
+							
 							<Checkbox name='obj_MinerOrcaMode'>
 								<X>1%</X>
-								<Y>25%</Y>
+								<Y>30%</Y>
 								<Width>32%</Width> 
 								<Height>10%</Height> 
 								<Text>Orca Mode</Text>
@@ -1527,16 +1588,16 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									{
 										if ${Script[ComBot].VariableScope.Miner.Config.OrcaMode}
 										{
-											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Corp Hangar Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[ByName, Inventory].ChildCapacity[ShipCorpHangar]}].Round} m3]
+											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Fleet Hangar Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipFleetHangar].Capacity}].Round} m3]
 										}
 										else
 										{
-											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[OreHold Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[ByName, Inventory].ChildCapacity[ShipOreHold]}].Round} m3]
+											UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[OreHold Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipOreHold].Capacity}].Round} m3]
 										}
 									}
 									else
 									{
-										UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Cargo Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${MyShip.CargoCapacity}].Round} m3]
+										UIElement[ThresholdTitle@DropoffFrame@Miner_Frame@ComBot_Miner]:SetText[Cargo Threshold: ${Script[ComBot].VariableScope.Miner.Config.Threshold}% = ${Math.Calc[${Script[ComBot].VariableScope.Miner.Config.Threshold} * .01 * ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].Capacity}].Round} m3]
 									}
 									This:SetZOrder[movetop]
 								</OnLeftClick>
@@ -1605,6 +1666,30 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText[""]
 								</OnMouseExit>
 							</Textentry>							
+							<Checkbox name='RenameCans'>
+								<X>34%</X>
+								<Y>65%</Y>
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Text>Rename Jetcans</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Miner.Config.RenameCans}
+									{
+										This:SetChecked
+									}
+									This:SetZOrder[movetop]
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Miner.Config:SetRenameCans[${This.Checked}]
+									This:SetZOrder[movetop]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText["When checked, ComBot will rename jetcans after they are jettisoned with your corp ticker and current timestamp."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Miner_Frame@ComBot_Miner]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>
 							<Checkbox name='ApproachPriority'>
 								<X>34%</X>
 								<Y>75%</Y>

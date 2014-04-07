@@ -19,9 +19,9 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-objectdef obj_Configuration_UndockWarp
+objectdef obj_Configuration_MemoryManager
 {
-	variable string SetName = "UndockWarp"
+	variable string SetName = "MemoryManager"
 
 	method Initialize()
 	{
@@ -41,27 +41,28 @@ objectdef obj_Configuration_UndockWarp
 	{
 		BaseConfig.BaseRef:AddSet[${This.SetName}]
 
-		This.CommonRef:AddSetting[substring, "Undock"]
+		This.CommonRef:AddSetting[Size, 500]
 	}
 
-	Setting(string, substring, Setsubstring)
+	Setting(int, Size, SetSize)
 	
 }
 
-objectdef obj_UndockWarp inherits obj_State
+objectdef obj_MemoryManager inherits obj_State
 {
-	variable obj_Configuration_UndockWarp Config
+	variable obj_Configuration_MemoryManager Config
 	
 	method Initialize()
 	{
 		This[parent]:Initialize
 		This.NonGameTiedPulse:Set[TRUE]
-		DynamicAddMiniMode("UndockWarp", "UndockWarp")
+		DynamicAddMiniMode("MemoryManager", "MemoryManager")
 	}
 	
 	method Start()
 	{
-		This:QueueState["UndockWarp"]
+		execute dotnet memmanager memmanager ${Math.Calc[(${Config.Size}) * 1048576].Int}
+		This:QueueState["Manage", 300000]
 	}
 	
 	method Stop()
@@ -69,21 +70,9 @@ objectdef obj_UndockWarp inherits obj_State
 		This:Clear
 	}
 	
-	member:bool UndockWarp()
+	member:bool Manage()
 	{
-		if ${Client.Undock}
-		{
-			return FALSE
-		}
-		if ${EVE.IsProgressWindowOpen}
-		{
-			if ${EVE.ProgressWindowTitle.Equal[Prepare to undock]}
-			{
-				UI:Update["UndockWarp", "Triggering warp to undock bookmark, if available", "y"]
-				Client.Undock:Set[TRUE]
-			}
-		}
+		execute dotnet memmanager memmanager ${Math.Calc[(${Config.Size}) * 1048576].Int}
 		return FALSE
 	}
-
 }
