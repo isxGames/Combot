@@ -27,10 +27,9 @@ objectdef obj_Configuration_AutoModule
 	{
 		if !${BaseConfig.BaseRef.FindSet[${This.SetName}](exists)}
 		{
-			UI:Update["obj_Configuration", " ${This.SetName} settings missing - initializing", "o"]
+			UI:Update["Configuration", " ${This.SetName} settings missing - initializing", "o"]
 			This:Set_Default_Values[]
 		}
-		UI:Update["obj_Configuration", " ${This.SetName}: Initialized", "-g"]
 	}
 
 	member:settingsetref CommonRef()
@@ -44,13 +43,14 @@ objectdef obj_Configuration_AutoModule
 		This.CommonRef:AddSetting[ActiveHardeners, TRUE]
 		This.CommonRef:AddSetting[ActiveShieldBoost, 95]
 		This.CommonRef:AddSetting[ActiveArmorRepair, 95]
-		This.CommonRef:AddSetting[ActiveShieldCap, 20]
-		This.CommonRef:AddSetting[ActiveArmorCap, 20]
+		This.CommonRef:AddSetting[ActiveShieldCap, 35]
+		This.CommonRef:AddSetting[ActiveArmorCap, 35]
 		This.CommonRef:AddSetting[Cloak, TRUE]
 		This.CommonRef:AddSetting[GangLink, TRUE]
 		This.CommonRef:AddSetting[SensorBoosters, TRUE]
 		This.CommonRef:AddSetting[TrackingComputers, TRUE]
 		This.CommonRef:AddSetting[ECCM, TRUE]
+		This.CommonRef:AddSetting[DroneControlUnit, TRUE]
 	}
 
 	Setting(bool, ActiveHardeners, SetActiveHardeners)
@@ -65,17 +65,21 @@ objectdef obj_Configuration_AutoModule
 	Setting(bool, SensorBoosters, SetSensorBoosters)
 	Setting(bool, TrackingComputers, SetTrackingComputers)
 	Setting(bool, ECCM, SetECCM)
+	Setting(bool, DroneControlUnit, SetDroneControlUnit)
 	
 }
 
 objectdef obj_AutoModule inherits obj_State
 {
 	variable obj_Configuration_AutoModule Config
+	variable bool SafetyOveride=FALSE
+	variable bool DropCloak=FALSE
 	
 	method Initialize()
 	{
 		This[parent]:Initialize
 		This.NonGameTiedPulse:Set[TRUE]
+		This.PulseFrequency:Set[100]
 		DynamicAddMiniMode("AutoModule", "AutoModule")
 	}
 	
@@ -91,7 +95,7 @@ objectdef obj_AutoModule inherits obj_State
 	
 	member:bool AutoModule()
 	{
-		if !${Client.InSpace}
+		if !${Client.InSpace} || ${SafetyOveride}
 		{
 			return FALSE
 		}
@@ -101,7 +105,20 @@ objectdef obj_AutoModule inherits obj_State
 		}
 		if ${Ship.ModuleList_Cloaks.Count} && ${Config.Cloak}
 		{
-			Ship.ModuleList_Cloaks:Activate
+			if ${This.DropCloak}
+			{
+				if ${Ship.ModuleList_Cloaks.ActiveCount}
+				{
+					Ship.ModuleList_Cloaks:Deactivate
+				}
+			}
+			else
+			{
+				if !${Ship.ModuleList_Cloaks.ActiveCount}
+				{
+					Ship.ModuleList_Cloaks:Activate
+				}
+			}
 		}
 
 		if ${Ship.ModuleList_Regen_Shield.InactiveCount} && ((${MyShip.ShieldPct} < ${Config.ActiveShieldBoost} && ${MyShip.CapacitorPct} > ${Config.ActiveShieldCap}) || ${Config.ShieldBoost})
@@ -147,6 +164,11 @@ objectdef obj_AutoModule inherits obj_State
 			Ship.ModuleList_ECCM:ActivateCount[${Math.Calc[${Ship.ModuleList_ECCM.Count} - ${Ship.ModuleList_ECCM.ActiveCount}]}]
 		}
 
+		if ${Ship.ModuleList_DroneControlUnit.ActiveCount} < ${Ship.ModuleList_DroneControlUnit.Count} && ${Config.DroneControlUnit}
+		{
+			UI:Update["AutoModule", "Activating DroneControlUnit", "g"]
+			Ship.ModuleList_DroneControlUnit:ActivateCount[${Math.Calc[${Ship.ModuleList_DroneControlUnit.Count} - ${Ship.ModuleList_DroneControlUnit.ActiveCount}]}, FALSE]
+		}
 		
 		return FALSE
 	}

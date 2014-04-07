@@ -21,6 +21,7 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 
 
 
+#include temp/version.iss
 #include core/Defines.iss
 #include core/Macros.iss
 #include core/obj_ComBot.iss
@@ -35,7 +36,6 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 #include core/obj_ModuleList.iss
 #include core/obj_Ship.iss
 #include core/obj_Cargo.iss
-#include core/obj_Security.iss
 #include core/obj_Jetcan.iss
 #include core/obj_TargetList.iss
 #include core/obj_Drones.iss
@@ -44,6 +44,9 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 #include core/obj_Fleet.iss
 #include core/obj_Login.iss
 #include core/obj_Dynamic.iss
+#include core/obj_Busy.iss
+#include core/obj_NPCData.iss
+#include core/obj_PriorityTargets.iss
 
 #include temp/behaviorincludes.iss
 
@@ -60,13 +63,12 @@ function atexit()
 
 function main(string Character="")
 {
+	declarevariable MinimumISXEVE float64 script
+	MinimumISXEVE:Set[20121210.0034]
+
 	declarevariable EVEExtension obj_EVEExtension script
 	EVEExtension.Character:Set[${Character}]
 	call EVEExtension.Initialize
-	while !${EVEExtension.Ready}
-	{
-		wait 10
-	}
 
 	module -require LSMIPC
 	echo "${Time} ComBot: Starting"
@@ -77,12 +79,26 @@ function main(string Character="")
 	declarevariable Config obj_Configuration script
 	UI:Reload
 	
+	
+
+	declarevariable NPCData obj_NPCData script
+	declarevariable PriorityTargets obj_PriorityTargets script
 	declarevariable ComBotLogin obj_Login script
+	declarevariable Dynamic obj_Dynamic script
+	#include temp/behaviordeclares.iss
+	
+	#include temp/minimodedeclares.iss
+
+	#include temp/thirdpartybehaviordeclares.iss
+	
+	#include temp/thirdpartyminimodedeclares.iss
+	
+	Dynamic:PopulateBehaviors
+	Dynamic:PopulateMiniModes
 	while TRUE
 	{
 		if ${Me(exists)} && ${MyShip(exists)} && (${Me.InSpace} || ${Me.InStation})
 		{
-			echo Logged in
 			break
 		}
 		wait 10
@@ -94,25 +110,14 @@ function main(string Character="")
 	declarevariable Move obj_Move script
 	declarevariable Ship obj_Ship script
 	declarevariable Cargo obj_Cargo script
-	declarevariable Security obj_Security script
 	declarevariable RefineData obj_Configuration_RefineData script
 	declarevariable AgentDialog obj_AgentDialog script
 	declarevariable Drones obj_Drones script
 	declarevariable Jetcan obj_Jetcan script
 	declarevariable Delay obj_Delay script
 	declarevariable Fleets obj_Fleet script
-	declarevariable Dynamic obj_Dynamic script
+	declarevariable Busy obj_Busy script
 	
-	#include temp/behaviordeclares.iss
-	
-	#include temp/minimodedeclares.iss
-
-	#include temp/thirdpartybehaviordeclares.iss
-	
-	#include temp/thirdpartyminimodedeclares.iss
-	
-	Dynamic:PopulateBehaviors
-	Dynamic:PopulateMiniModes
 	
 	UI:Update["ComBot", "Module initialization complete", "y"]
 	
@@ -123,7 +128,6 @@ function main(string Character="")
 	else
 	{
 		UI:Update["ComBot", "Paused", "r"]
-		Security:Start
 	}
 	
 

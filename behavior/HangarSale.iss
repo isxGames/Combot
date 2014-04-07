@@ -27,10 +27,10 @@ objectdef obj_Configuration_HangarSale
 	{
 		if !${BaseConfig.BaseRef.FindSet[${This.SetName}](exists)}
 		{
-			UI:Update["obj_Configuration", " ${This.SetName} settings missing - initializing", "o"]
+			UI:Update["Configuration", " ${This.SetName} settings missing - initializing", "o"]
 			This:Set_Default_Values[]
 		}
-		UI:Update["obj_Configuration", " ${This.SetName}: Initialized", "-g"]
+		UI:Update["Configuration", " ${This.SetName}: Initialized", "-g"]
 	}
 
 	member:settingsetref CommonRef()
@@ -172,15 +172,13 @@ objectdef obj_HangarSale inherits obj_State
 	
 	member:bool OpenHangar()
 	{
-		if !${EVEWindow[ByName, "Inventory"](exists)}
+		if !${Client.Inventory}
 		{
-			UI:Update["obj_HangarSale", "Making sure inventory is open", "g"]
-			MyShip:OpenCargo
 			return FALSE
 		}
-		if !${EVEWindow[byCaption, "Item Hangar"](exists)}
+		if !${EVEWindow[Inventory].ActiveChild.Name.Equal[StationItems]}
 		{
-			EVEWindow[byName,"Inventory"]:MakeChildActive[StationItems]
+			EVEWindow[Inventory].ChildWindow[${Me.Station.ID}, StationItems]:MakeActive
 		}
 		return TRUE
 	}

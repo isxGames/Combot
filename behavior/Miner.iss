@@ -1,6 +1,6 @@
 /*
 
-ComBot  Copyright © 2012  Tehtsuo and Vendan
+ComBot  Copyright � 2012  Tehtsuo and Vendan
 
 This file is part of ComBot.
 
@@ -27,10 +27,10 @@ objectdef obj_Configuration_Miner
 	{
 		if !${BaseConfig.BaseRef.FindSet[${This.SetName}](exists)}
 		{
-			UI:Update["obj_Configuration", " ${This.SetName} settings missing - initializing", "o"]
+			UI:Update["Configuration", " ${This.SetName} settings missing - initializing", "o"]
 			This:Set_Default_Values[]
 		}
-		UI:Update["obj_Configuration", " ${This.SetName}: Initialized", "-g"]
+		UI:Update["Configuration", " ${This.SetName}: Initialized", "-g"]
 	}
 
 	member:settingsetref CommonRef()
@@ -127,6 +127,7 @@ objectdef obj_Configuration_Miner
 		This.CommonRef:AddSetting[TetherName,""]
 		
 		This.CommonRef:AddSetting[DontMove,FALSE]
+		This.CommonRef:AddSetting[RenameCans,TRUE]
 		
 	}
 	
@@ -140,8 +141,11 @@ objectdef obj_Configuration_Miner
 	Setting(bool, OrcaMode, SetOrcaMode)	
 	Setting(bool, Tether, SetTether)	
 	Setting(bool, ApproachPriority, SetApproachPriority)
+	Setting(bool, MineAlone, SetMineAlone)
 	Setting(string, TetherName, SetTetherName)	
 	Setting(bool, UseBookmarks, SetUseBookmarks)	
+	Setting(bool, ShortCycle, SetShortCycle)	
+	Setting(int, ShortCyclePercent, SetShortCyclePercent)	
 	Setting(string, BeltPrefix, SetBeltPrefix)	
 	Setting(string, IceBeltPrefix, SetIceBeltPrefix)	
 	Setting(string, GasPrefix, SetGasPrefix)	
@@ -150,6 +154,7 @@ objectdef obj_Configuration_Miner
 	Setting(string, JetcanPrefix, SetJetcanPrefix)
 	
 	Setting(bool, DontMove, SetDontMove)
+	Setting(bool, RenameCans, SetRenameCans)
 
 }
 
@@ -162,6 +167,7 @@ objectdef obj_Miner inherits obj_State
 	variable bool WarpToOrca=FALSE
 	variable index:bookmark BookmarkIndex
 	variable index:entity Belts
+	variable string ClosestRoidQuery
 
 	method Initialize()
 	{
@@ -184,13 +190,15 @@ objectdef obj_Miner inherits obj_State
 	method Start()
 	{
 		This:PopulateTargetList
-		Drones:RemainDocked
-		Drones:Defensive
 		UI:Update["obj_Miner", "Started", "g"]
 		This:AssignStateQueueDisplay[DebugStateList@Debug@ComBotTab@ComBot]
 		if ${This.IsIdle}
 		{
-			This:QueueState["OpenCargoHold"]
+			if ${Client.InSpace}
+			{
+				This:QueueState["RequestUpdate"]
+				This:QueueState["Updated"]
+			}
 			This:QueueState["CheckCargoHold"]
 		}
 	}
@@ -200,11 +208,15 @@ objectdef obj_Miner inherits obj_State
 		This:DeactivateStateQueueDisplay
 		Asteroids:ClearExclusions
 		This:Clear
+		noop This.DropCloak[FALSE]
 	}
 	
 	method PopulateTargetList()
 	{
 		Asteroids:ClearQueryString
+		variable string sep
+		ClosestRoidQuery:Set[""]
+		sep:Set[""]
 
 		if !${Config.GasHarvesting}
 		{
@@ -223,6 +235,8 @@ objectdef obj_Miner inherits obj_State
 				do
 				{
 					Asteroids:AddQueryString[CategoryID==CATEGORYID_ORE && Name =- "${OreTypeIterator.Key}"]
+					ClosestRoidQuery:Concat[${sep}Name =- "${OreTypeIterator.Key}"]
+					sep:Set[" || "]
 				}
 				while ${OreTypeIterator:Next(exists)}
 			}
@@ -235,39 +249,79 @@ objectdef obj_Miner inherits obj_State
 		{
 			Asteroids:AddQueryString[GroupID==GROUP_HARVESTABLECLOUD]
 		}
+		ClosestRoidQuery:Set[CategoryID==CATEGORYID_ORE && (${ClosestRoidQuery})]
+		
 	}
+
 	
-	
-	member:bool OpenCargoHold()
-	{
-		if !${EVEWindow[ByName, "Inventory"](exists)}
-		{
-			UI:Update["obj_Miner", "Opening inventory", "g"]
-			MyShip:OpenCargo[]
-			return FALSE
-		}
-		return TRUE
-	}
 	
 	member:bool CheckCargoHold()
 	{
 		Profiling:StartTrack["Miner: CheckCargoHold"]
-		if 	${EVEWindow[ByName, Inventory].ChildUsedCapacity[ShipOreHold]} / ${EVEWindow[ByName, Inventory].ChildCapacity[ShipOreHold]} >= ${Config.Threshold} * .01 && \
-			${MyShip.HasOreHold} && \
+		if !${Client.Inventory}
+		{
+			return FALSE
+		}
+
+		
+		if ${Config.OrcaMode}
+		{
+			if 	${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipFleetHangar].UsedCapacity} / ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipFleetHangar].Capacity} >= ${Config.Threshold} * .01 && \
+				!${Config.Dropoff_Type.Equal[No Dropoff]} && \
+				!${Config.Dropoff_Type.Equal[Jetcan]}
+			{
+				UI:Update["obj_Miner", "Unload trip required", "g"]
+				This:QueueState["PrepareWarp"]
+				This:QueueState["Dropoff"]
+				This:QueueState["Traveling"]
+				This:QueueState["CheckCargoHold"]
+				This:QueueState["RequestUpdate"]
+				Profiling:EndTrack
+				return TRUE
+			}
+			else
+			{
+				This:QueueState["GoToMiningSystem"]
+				This:QueueState["Traveling"]
+				This:QueueState["Undock"]
+				This:QueueState["WaitForSpace"]
+				This:QueueState["RequestUpdate"]
+				This:QueueState["Updated"]
+				This:QueueState["CheckForWork"]
+				Profiling:EndTrack
+				return TRUE
+			}
+		}
+		elseif 	${MyShip.HasOreHold}
+		{
+			if ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipOreHold].UsedCapacity} / ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipOreHold].Capacity} >= ${Config.Threshold} * .01 && \
 			!${Config.Dropoff_Type.Equal[No Dropoff]} && \
 			!${Config.Dropoff_Type.Equal[Jetcan]} && \
 			!${Config.OrcaMode}
-		{
-			UI:Update["obj_Miner", "Unload trip required", "g"]
-			This:QueueState["PrepareWarp"]
-			This:QueueState["Dropoff"]
-			This:QueueState["Traveling"]
-			This:QueueState["OpenCargoHold"]
-			This:QueueState["CheckCargoHold"]
-			Profiling:EndTrack
-			return TRUE
+			{
+				UI:Update["obj_Miner", "Unload trip required", "g"]
+				This:QueueState["PrepareWarp"]
+				This:QueueState["Dropoff"]
+				This:QueueState["Traveling"]
+				This:QueueState["CheckCargoHold"]
+				This:QueueState["RequestUpdate"]
+				Profiling:EndTrack
+				return TRUE
+			}
+			else
+			{
+				This:QueueState["GoToMiningSystem"]
+				This:QueueState["Traveling"]
+				This:QueueState["Undock"]
+				This:QueueState["WaitForSpace"]
+				This:QueueState["RequestUpdate"]
+				This:QueueState["Updated"]
+				This:QueueState["CheckForWork"]
+				Profiling:EndTrack
+				return TRUE
+			}
 		}
-		elseif ${MyShip.UsedCargoCapacity} / ${MyShip.CargoCapacity} >= ${Config.Threshold} * .01 && \
+		elseif ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].UsedCapacity} / ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].Capacity} >= ${Config.Threshold} * .01 && \
 			!${MyShip.HasOreHold} && \
 			!${Config.Dropoff_Type.Equal[No Dropoff]} && \
 			!${Config.Dropoff_Type.Equal[Jetcan]} && \
@@ -277,22 +331,8 @@ objectdef obj_Miner inherits obj_State
 			This:QueueState["PrepareWarp"]
 			This:QueueState["Dropoff"]
 			This:QueueState["Traveling"]
-			This:QueueState["OpenCargoHold"]
 			This:QueueState["CheckCargoHold"]
-			Profiling:EndTrack
-			return TRUE
-		}
-		elseif ${EVEWindow[ByName, Inventory].ChildUsedCapacity[ShipCorpHangar]} / ${EVEWindow[ByName, Inventory].ChildCapacity[ShipCorpHangar]} >= ${Config.Threshold} * .01 && \
-			!${Config.Dropoff_Type.Equal[No Dropoff]} && \
-			!${Config.Dropoff_Type.Equal[Jetcan]} && \
-			${Config.OrcaMode}
-		{
-			UI:Update["obj_Miner", "Unload trip required", "g"]
-			This:QueueState["PrepareWarp"]
-			This:QueueState["Dropoff"]
-			This:QueueState["Traveling"]
-			This:QueueState["OpenCargoHold"]
-			This:QueueState["CheckCargoHold"]
+			This:QueueState["RequestUpdate"]
 			Profiling:EndTrack
 			return TRUE
 		}
@@ -309,42 +349,40 @@ objectdef obj_Miner inherits obj_State
 			return TRUE
 		}
 	}
-	
-	member:bool PrepareWarp()
+
+	member:bool DropCloak(bool arg)
 	{
-		Profiling:StartTrack["Miner: PrepareWarp"]
-		if ${Drones.DronesInSpace}
+		AutoModule.DropCloak:Set[${arg}]
+		return TRUE
+	}
+	
+	member:bool PrepareWarp(bool Save=TRUE)
+	{
+		DroneControl:Recall
+		if ${Busy.IsBusy}
 		{
-			Drones:Recall
-			This:InsertState["PrepareWarp"]
-			This:InsertState["Idle", 5000]
-			Profiling:EndTrack
-			return TRUE
+			return FALSE
 		}
 		if ${Config.OrcaMode}
 		{
 			relay all -event ComBot_Orca_InBelt FALSE
 		}
-		if ${Asteroids.TargetList.Used} && !${Config.Dropoff_Type.Equal[Orca]} && !${Config.Tether}
+		if ${Asteroids.TargetList.Used} && !${Config.Dropoff_Type.Equal[Fleet Hangar]} && !${Config.Tether} && ${Save}
 		{
 			Move:SaveSpot
 		}
 		Asteroids:ClearExclusions
-		Profiling:EndTrack
 		return TRUE
 	}
 	
 	member:bool Dropoff()
 	{
 		Profiling:StartTrack["Miner: Dropoff"]
-		variable string Dropoff_Type=${Config.Dropoff_Type}
 		variable string Bookmark=${Config.Dropoff}
-		if ${Dropoff_Type.Equal[Orca]}
+		if ${Config.Dropoff_Type.Equal[Fleet Hangar]}
 		{
-			echo OrcaWarp - ${This.WarpToOrca}
 			if ${This.WarpToOrca}
 			{
-				Dropoff_Type:Set[Container]
 				Bookmark:Set[${Config.MiningSystem}]
 			}
 			else
@@ -353,15 +391,27 @@ objectdef obj_Miner inherits obj_State
 				return TRUE
 			}
 		}
+		if !${Client.Inventory}
+		{
+			return FALSE
+		}
+
 		if ${MyShip.HasOreHold}
 		{
-			Cargo:At[${Bookmark},${Config.Dropoff_Type},${Config.Dropoff_SubType}, ${Config.Container_Name}]:Unload["", 0, OreHold]
+			Cargo:At[${Bookmark},${Config.Dropoff_Type},${Config.Dropoff_SubType}, ${Config.Container_Name}]:Unload["CategoryID == CATEGORYID_ORE || GroupID == GROUP_HARVESTABLECLOUD", 0, OreHold]
 		}
 		if ${Config.OrcaMode}
 		{
-			Cargo:At[${Bookmark},${Config.Dropoff_Type},${Config.Dropoff_SubType}, ${Config.Container_Name}]:Unload["", 0, ShipCorpHangar]
+			Cargo:At[${Bookmark},${Config.Dropoff_Type},${Config.Dropoff_SubType}, ${Config.Container_Name}]:Unload["CategoryID == CATEGORYID_ORE || GroupID == GROUP_HARVESTABLECLOUD", 0, ShipCorpHangar]
 		}
-		Cargo:At[${Bookmark},${Config.Dropoff_Type},${Config.Dropoff_SubType}, ${Config.Container_Name}]:Unload["", 0, Ship]
+
+		Cargo:PopulateCargoList[Ship]
+		Cargo:Filter["CategoryID == CATEGORYID_ORE || GroupID == GROUP_HARVESTABLECLOUD"]
+		if ${Cargo.CargoList.Used}
+		{
+			Cargo:At[${Bookmark},${Config.Dropoff_Type},${Config.Dropoff_SubType}, ${Config.Container_Name}]:Unload["CategoryID == CATEGORYID_ORE || GroupID == GROUP_HARVESTABLECLOUD", 0, Ship]
+		}
+		
 		Profiling:EndTrack
 		return TRUE
 	}
@@ -429,18 +479,35 @@ objectdef obj_Miner inherits obj_State
 		Profiling:StartTrack["Miner: CheckForWork"]
 		if !${Asteroids.TargetList.Used}
 		{
+			This:QueueState["PrepareWarp"]
 			This:QueueState["MoveToBelt"]
-			This:QueueState["RequestUpdate"]
-			This:QueueState["Updated"]
+			if ${Config.MineAlone}
+			{
+				This:QueueState["VerifyMiningLocation"]
+			}
 			This:QueueState["CheckForWork"]
 		}
 		else
 		{
+			This:QueueState["DropCloak", 50, TRUE]
 			This:QueueState["Mine"]
-			This:QueueState["OpenCargoHold"]
+			This:QueueState["DropCloak", 50, FALSE]
 			This:QueueState["CheckCargoHold"]
 		}
 		Profiling:EndTrack
+		return TRUE
+	}
+	
+	member:bool VerifyMiningLocation()
+	{
+		if ${Entity[CategoryID == CATEGORYID_SHIP && IsPC && !IsFleetMember && OwnerID != ${Me.CharID}]}
+		{
+			UI:Update["Miner", "This location is occupied, going to next", "g"]
+			This:InsertState["VerifyMiningLocation"]
+			This:InsertState["MoveToBelt"]
+			This:InsertState["PrepareWarp", 500, FALSE]
+			Drones:RecallAll
+		}
 		return TRUE
 	}
 	
@@ -451,6 +518,8 @@ objectdef obj_Miner inherits obj_State
 		if ${Config.Tether} && ${Local[${Config.TetherName}](exists)}
 		{
 			Move:Fleetmember[${Local[${Config.TetherName}].ID}]
+			This:InsertState["Updated"]
+			This:InsertState["RequestUpdate"]
 			This:InsertState["Traveling"]
 			Profiling:EndTrack
 			return TRUE
@@ -459,6 +528,8 @@ objectdef obj_Miner inherits obj_State
 		if ${Move.SavedSpotExists}
 		{
 			Move:GotoSavedSpot
+			This:InsertState["Updated"]
+			This:InsertState["RequestUpdate"]
 			This:InsertState["RemoveSavedSpot"]
 			This:InsertState["Traveling", 2000]
 			Profiling:EndTrack
@@ -468,6 +539,8 @@ objectdef obj_Miner inherits obj_State
 		if ${Config.Dropoff_Type.Equal[Orca]} && ${This.WarpToOrca} && ${Local[${Config.Container_Name}](exists)}
 		{
 			Move:Fleetmember[${Local[${Config.Container_Name}].ID}]
+			This:InsertState["Updated"]
+			This:InsertState["RequestUpdate"]
 			This:InsertState["Traveling"]
 			Profiling:EndTrack
 			return TRUE
@@ -508,10 +581,11 @@ objectdef obj_Miner inherits obj_State
 				}
 			}
 		
-			Move:Bookmark[${BookmarkIndex.Get[1].Label}]
+			Move:Bookmark[${BookmarkIndex.Get[1].Label}, TRUE, 0, TRUE]
 			BookmarkIndex:Remove[1]
 			BookmarkIndex:Collapse
-			
+			This:InsertState["Updated"]
+			This:InsertState["RequestUpdate"]
 			This:InsertState["Traveling"]
 			Profiling:EndTrack
 			return TRUE
@@ -541,10 +615,21 @@ objectdef obj_Miner inherits obj_State
 				
 				Belts:RemoveByQuery[${LavishScript.CreateQuery[Name =- "${beltsubstring}"]}, FALSE]
 			}
+			if ${Belts.Used} == 0
+			{
+				variable string PopulateResults
+				UI:Update["Miner", "Belts still not found after re-filling the index", "y"]
+				UI:Update["Miner", "This might be a bug, or you might be in a system with no belts!", "y"]
+				UI:Update["Miner", "Attempting to force a PopulateEntities to fix bug", "y"]
+				EVE:PopulateEntities[TRUE]
+				return FALSE
+			}
 
-			Move:Object[${Belts.Get[1].ID}]
+			Move:Object[${Belts.Get[1].ID}, 0, TRUE]
 			Belts:Remove[1]
 			Belts:Collapse
+			This:InsertState["Updated"]
+			This:InsertState["RequestUpdate"]
 			This:InsertState["Traveling"]
 			Profiling:EndTrack
 			return TRUE
@@ -587,11 +672,11 @@ objectdef obj_Miner inherits obj_State
 		{
 			MaxTarget:Set[${Config.MaxLaserLocks}]
 		}
-		if ${Ship.ModuleList_MiningLaser.Count} < ${MaxTarget}
-		{
-			MaxTarget:Set[${Ship.ModuleList_MiningLaser.Count}]
-		}
 		if ${Config.IceMining} || ${Config.GasHarvesting}
+		{
+			MaxTarget:Set[1]
+		}
+		if ${MaxTarget} < 1
 		{
 			MaxTarget:Set[1]
 		}
@@ -610,7 +695,7 @@ objectdef obj_Miner inherits obj_State
 		
 	
 		variable int64 Orca
-		if ${Config.Dropoff_Type.Equal[Orca]}
+		if ${Config.Dropoff_Type.Equal[Fleet Hangar]}
 		{
 			if ${Entity[Name = "${Config.Container_Name}"](exists)}
 			{
@@ -649,47 +734,93 @@ objectdef obj_Miner inherits obj_State
 		}
 		else
 		{
-			EVE:QueryEntities[Roids, "GroupID==GROUP_HARVESTABLECLOUD || CategoryID==CATEGORYID_ORE"]
-			Roids:GetIterator[Roid]
+			if ${Config.GasHarvesting}
+			{
+				EVE:QueryEntities[Roids, "GroupID==GROUP_HARVESTABLECLOUD || CategoryID==CATEGORYID_ORE"]
+			}
+			else
+			{
+				EVE:QueryEntities[Roids, "${ClosestRoidQuery}"]
+			}
+Roids:GetIterator[Roid]
 		}
 		if ${Config.OrcaMode}
 		{
+			if !${Client.Inventory}
+			{
+				return FALSE
+			}
+			
+			Asteroids:RequestUpdate
 			Asteroids.AutoLock:Set[FALSE]
 			Asteroids.LockTop:Set[FALSE]
 			
 			relay all -event ComBot_Orca_InBelt TRUE
-			relay all -event ComBot_Orca_Cargo ${EVEWindow[ByName, Inventory].ChildUsedCapacity[ShipCorpHangar]}
+			relay all -event ComBot_Orca_Cargo ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipFleetHangar].UsedCapacity}
 			Cargo:PopulateCargoList[ShipCorpHangar]
-			if ${Cargo.CargoList.Used}
-			{
-				Cargo:Filter[CategoryID==CATEGORYID_ORE]
-				Cargo:MoveCargoList[OreHold]
-				return TRUE
-			}
-			Cargo:PopulateCargoList[ShipCorpHangar]
-			if ${Cargo.CargoList.Used}
+			if ${Cargo.CargoList.Used} && !${Config.Dropoff_Type.Equal[No Dropoff]}
 			{
 				Cargo:Filter[GroupID==GROUP_HARVESTABLECLOUD || CategoryID==CATEGORYID_ORE]
-				Cargo:MoveCargoList[Ship]
-				return TRUE
+				if ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].UsedCapacity} / ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].Capacity} < ${Config.Threshold} * .01
+				{
+					if ${Cargo.CargoList.Used}
+					{
+						Cargo:MoveCargoList[Ship]
+						return TRUE
+					}
+				}
+				if ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipOreHold].UsedCapacity} / ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipOreHold].Capacity} < ${Config.Threshold} * .01
+				{
+					if ${Cargo.CargoList.Used}
+					{
+						Cargo:MoveCargoList[OreHold]
+						return TRUE
+					}
+				}
+			}
+			Cargo:PopulateCargoList[Ship]
+			if ${Cargo.CargoList.Used} && ${Config.Dropoff_Type.Equal[No Dropoff]}
+			{
+				if ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipFleetHangar].UsedCapacity} / ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipFleetHangar].Capacity} < 90 * .01
+				{
+					if ${Cargo.CargoList.Used}
+					{
+						Cargo:MoveCargoList[Fleet Hangar]
+						return TRUE
+					}
+				}
 			}
 			
 			if !${Config.DontMove}
 			{
-				if ${Roid:First(exists)}
+				if !${Config.Tether}
 				{
-					if ${Config.IceMining}
+					if ${Roid:First(exists)}
 					{
-						Move:Approach[${Roid.Value.ID}, 10000]
+						if ${Config.IceMining}
+						{
+							Move:Approach[${Roid.Value.ID}, 10000]
+						}
+						elseif ${Config.GasHarvesting}
+						{
+							Move:Approach[${Roid.Value.ID}, 1000]
+						}
+						else
+						{
+							Move:Approach[${Roid.Value.ID}, 8000]
+						}
 					}
-					elseif ${Config.GasHarvesting}
+				}
+				else
+				{
+					if ${Entity[Name = "${Config.TetherName}"](exists)}
 					{
-						Move:Approach[${Roid.Value.ID}, 1000]
+						if ${Entity[Name = "${Config.TetherName}"].Distance} > 1500 && ${MyShip.ToEntity.Mode} != 1
+						{
+							Entity[Name = "${Config.TetherName}"]:KeepAtRange
+						}
 					}
-					else
-					{
-						Move:Approach[${Roid.Value.ID}, 8000]
-					}
+					
 				}
 			}
 		}
@@ -711,10 +842,19 @@ objectdef obj_Miner inherits obj_State
 		}
 
 
-		if ${Ship.ModuleList_MiningLaser.ActiveCount} < ${Ship.ModuleList_MiningLaser.Count}
+		if ${Ship.ModuleList_MiningLaser.ActiveCount} < ${Ship.ModuleList_MiningLaser.Count} && ${Asteroids.LockedTarget.Count} >= ${Ship.ModuleList_MiningLaser.Count}
+		{
+			This:InsertState["ActivateLasers", 2000]
+		}
+		elseif ${Ship.ModuleList_MiningLaser.ActiveCount} < ${Ship.ModuleList_MiningLaser.Count}
+		{
+			This:InsertState["ActivateLasers", 2000]
+			This:InsertState["Updated"]
+			Asteroids:RequestUpdate
+		}
+		elseif ${Asteroids.LockedTarget.Count} < ${MaxTarget}
 		{
 			Asteroids:RequestUpdate
-			This:InsertState["ActivateLasers", 2000]
 		}
 		
 		Profiling:EndTrack
@@ -732,15 +872,41 @@ objectdef obj_Miner inherits obj_State
 		}
 		Asteroids:RequestUpdate
 		
-		
+		variable int MaxTarget = ${MyShip.MaxLockedTargets}
+		if ${Me.MaxLockedTargets} < ${MaxTarget}
+		{
+			MaxTarget:Set[${Math.Calc[${Me.MaxLockedTargets}]}]
+		}
+		if ${Config.MaxLaserLocks} < ${MaxTarget}
+		{
+			MaxTarget:Set[${Config.MaxLaserLocks}]
+		}
+		if ${Ship.ModuleList_MiningLaser.Count} < ${MaxTarget}
+		{
+			MaxTarget:Set[${Ship.ModuleList_MiningLaser.Count}]
+		}
+		if ${Config.IceMining} || ${Config.GasHarvesting}
+		{
+			MaxTarget:Set[1]
+		}
+		if ${MaxTarget} < 1
+		{
+			MaxTarget:Set[1]
+		}
 		
 		variable iterator Roid
-		Asteroids.LockedTargetList:GetIterator[Roid]
+		variable iterator RoidCheck
+		variable bool Approaching=FALSE
+		Asteroids.LockedAndLockingTargetList:GetIterator[Roid]
 		
-		variable float LaserSplitCount = ${Math.Calc[${Ship.ModuleList_MiningLaser.Count} / ${Asteroids.MinLockCount}]}
-		variable int LaserRoidSplitCount = ${Math.Calc[${Ship.ModuleList_MiningLaser.Count} % ${Asteroids.MinLockCount}]}
-		variable int LaserCount = ${LaserSplitCount.Ceil}
+		variable float LaserSplitCount
+		variable int LaserRoidSplitCount
+		variable int LaserCount
 		variable int LaserRoidCount = 0
+		
+		LaserSplitCount:Set[${Math.Calc[${Ship.ModuleList_MiningLaser.Count} / ${MaxTarget}]}]
+		LaserRoidSplitCount:Set[${Math.Calc[${Ship.ModuleList_MiningLaser.Count} % ${MaxTarget}]}]
+		LaserCount:Set[${LaserSplitCount.Ceil}]
 		
 		
 		if ${Roid:First(exists)}
@@ -749,6 +915,10 @@ objectdef obj_Miner inherits obj_State
 			{
 				if ${Roid.Value.ID(exists)}
 				{
+					if !${Roid.Value.IsLockedTarget}
+					{
+						continue
+					}
 					LaserRoidCount:Inc
 					if ${LaserRoidCount} > ${LaserRoidSplitCount}
 					{
@@ -757,6 +927,7 @@ objectdef obj_Miner inherits obj_State
 					if ${Roid.Value.Distance} > ${Ship.ModuleList_MiningLaser.Range}
 					{
 						Move:Approach[${Roid.Value.ID}, ${Ship.ModuleList_MiningLaser.Range}]
+						Approaching:Set[TRUE]
 						continue
 					}
 					if ${Config.IceMining}
@@ -776,10 +947,18 @@ objectdef obj_Miner inherits obj_State
 					}
 					else
 					{
+						
 						if ${Ship.ModuleList_MiningLaser.ActiveCountOn[${Roid.Value.ID}]} < ${LaserCount}
 						{
 							UI:Update["obj_Miner", "Activating 1 laser on ${Roid.Value.Name} (${ComBot.MetersToKM_Str[${Roid.Value.Distance}]})", "y"]
-							Ship.ModuleList_MiningLaser:Activate[${Roid.Value.ID}]
+							; if ${Config.ShortCycle}
+							; {
+								; Ship.ModuleList_MiningLaser:Activate[${Roid.Value.ID}, -1, TRUE, ]
+							; }
+							; else
+							; {
+								Ship.ModuleList_MiningLaser:Activate[${Roid.Value.ID}]
+							; }
 							Profiling:EndTrack
 							return FALSE
 						}
@@ -787,6 +966,33 @@ objectdef obj_Miner inherits obj_State
 				}
 			}
 			while ${Roid:Next(exists)}
+		}
+		if ${Roid:Last(exists)}	&& !${Approaching}	
+		{
+			variable int InRange = 0
+			Asteroids.TargetList:GetIterator[RoidCheck]
+			if ${RoidCheck:First(exists)}
+			{
+				do
+				{
+					if ${RoidCheck.Value.Distance} < ${Ship.ModuleList_MiningLaser.Range}
+					{
+						InRange:Inc
+					}
+					else
+					{
+						break
+					}
+				}
+				while ${RoidCheck:Next(exists)}
+			}
+			if ${Ship.ModuleList_MiningLaser.InactiveCount} && ${InRange} < ${MaxTarget}
+			{
+				UI:Update["obj_Miner", "Activating ${Ship.ModuleList_MiningLaser.InactiveCount} laser(s) on ${Roid.Value.Name} (${ComBot.MetersToKM_Str[${Roid.Value.Distance}]})", "y"]
+				Ship.ModuleList_MiningLaser:ActivateCount[${Ship.ModuleList_MiningLaser.InactiveCount}, ${Roid.Value.ID}]
+				Profiling:EndTrack
+				return TRUE
+			}
 		}
 		
 		Profiling:EndTrack
@@ -829,13 +1035,7 @@ objectdef obj_MinerUI inherits obj_State
 
 	member:bool OpenCargoHold()
 	{
-		if !${EVEWindow[ByName, "Inventory"](exists)}
-		{
-			UI:Update["obj_Miner", "Opening inventory", "g"]
-			MyShip:OpenCargo[]
-			return FALSE
-		}
-		return TRUE
+		return ${Client.Inventory}
 	}
 	
 	member:bool UpdateBookmarkLists()
