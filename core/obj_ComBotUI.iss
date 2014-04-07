@@ -29,6 +29,9 @@ objectdef obj_ComBotUI
 	variable queue:string ConsoleBuffer
 	variable bool Reloaded = FALSE
 	variable string LogFile
+	
+	variable string Branch = COMBOT_BRANCH
+	variable string Version = COMBOT_VERSION
 
 
 	method Initialize()
@@ -51,6 +54,16 @@ objectdef obj_ComBotUI
 		This:Update["ComBot", "This is free software and you are welcome to redistribute it", "o"]
 		This:Update["ComBot", "under certain conditions.  See gpl.txt for details", "o"]
 
+		
+		This:Update["ComBot", "Current Branch: \ay${Branch}", "g"]
+		This:Update["ComBot", "Current Version: \ay${Version}", "g"]
+		
+		if ${ISXEVE.Version} < ${MinimumISXEVE}
+		{
+			This:Update["ComBot", "You are currently using ISXEVE version \ay${ISXEVE.Version}", "r"]
+			This:Update["ComBot", "ComBot requires version \ay${MinimumISXEVE.Precision[4]} \aror higher", "r"]
+			This:Update["ComBot", "This may be because ISXEVE will be patched soon and is currently broken", "r"]
+		}
 		
 		This:Update["ComBot", "Initializing modules", "y"]
 
@@ -81,9 +94,16 @@ objectdef obj_ComBotUI
 			if ${EVEWindow[ByName,modal].Text.Find["The daily downtime will begin in"](exists)}
 			{
 				EVEWindow[ByName,modal]:ClickButtonOK
+				if ${Automate.Config.Downtime}
+				{
+					Automate:DeltaLogoutNow
+				}
 			}
 			EVE:CloseAllMessageBoxes
-			EVE:CloseAllChatInvites
+			if ${Config.Common.CloseChatInvites}
+			{
+				EVE:CloseAllChatInvites
+			}
 
     		This.NextMsgBoxPulse:Set[${Math.Calc[${LavishScript.RunningTime} + ${PulseMsgBoxIntervalInMilliSeconds} + ${Math.Rand[500]}]}]
 		}
@@ -96,6 +116,17 @@ objectdef obj_ComBotUI
 		This:WriteQueueToLog
 		This.Reloaded:Set[TRUE]
 		UIElement[ComBotTab@ComBot].Tab[${Config.Common.ActiveTab}]:Select
+		if ${Config.Common.Hidden}
+		{
+			UIElement[ComBotTab@ComBot]:Hide
+			This:SetText[Show]
+		}
+		else
+		{
+			UIElement[ComBotTab@ComBot]:Show
+			This:SetText[Hide]
+		}
+		
 	}
 	
 	method WriteQueueToLog()

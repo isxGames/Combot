@@ -47,8 +47,10 @@ objectdef obj_Ship inherits obj_State
 		This:AddModuleList[StasisWeb, "ToItem.GroupID = GROUP_STASIS_WEB"]
 		This:AddModuleList[SensorBoost, "ToItem.GroupID = GROUP_SENSORBOOSTER"]
 		This:AddModuleList[TargetPainter, "ToItem.GroupID = GROUP_TARGETPAINTER"]
+		This:AddModuleList[EnergyVampire, "ToItem.GroupID = GROUP_ENERGY_VAMPIRE"]
 		This:AddModuleList[TrackingComputer, "ToItem.GroupID = GROUP_TRACKINGCOMPUTER"]
 		This:AddModuleList[GangLinks, "ToItem.GroupID = GROUP_GANGLINK"]
+		This:AddModuleList[DroneControlUnit, "ToItem.GroupID = GROUP_DRONECONTROLUNIT"]
 		This:AddModuleList[EnergyTransfer, "ToItem.GroupID = GROUP_ENERGY_TRANSFER"]
 		This:AddModuleList[TargetModules, "MaxRange>0"]
 		This:Clear
@@ -81,11 +83,11 @@ objectdef obj_Ship inherits obj_State
 		variable index:module ModuleList
 		ModuleLists:GetIterator[List]
 		
-		UI:Update["obj_Ship", "Update Called"]
+		UI:Update["Ship", "Update Called"]
 
 		if !${Client.InSpace}
 		{
-			UI:Update["obj_Ship", "UpdateModules called while in station", "o"]
+			UI:Update["Ship", "UpdateModules called while in station", "o"]
 			RetryUpdateModuleList:Set[1]
 			return
 		}
@@ -100,12 +102,12 @@ objectdef obj_Ship inherits obj_State
 			}
 			while ${List:Next(exists)}		
 
-		Me.Ship:GetModules[ModuleList]
+		MyShip:GetModules[ModuleList]
 
-		if !${ModuleList.Used} && ${Me.Ship.HighSlots} > 0
+		if !${ModuleList.Used} && ${MyShip.HighSlots} > 0
 		{
-			UI:Update["obj_Ship", "UpdateModuleList - No modules found. Retrying in a few seconds", "o"]
-			UI:Update["obj_Ship", "If this ship has slots, you must have at least one module equipped, of any type.", "o"]
+			UI:Update["Ship", "UpdateModuleList - No modules found. Retrying in a few seconds", "o"]
+			UI:Update["Ship", "If this ship has slots, you must have at least one module equipped, of any type.", "o"]
 			RetryUpdateModuleList:Inc
 			if ${RetryUpdateModuleList} >= 10
 			{
@@ -123,7 +125,7 @@ objectdef obj_Ship inherits obj_State
 		{
 			if !${ModuleIter.Value(exists)}
 			{
-				UI:Update["obj_Ship", "UpdateModuleList - Null module found. Retrying in a few seconds.", "o"]
+				UI:Update["Ship", "UpdateModuleList - Null module found. Retrying in a few seconds.", "o"]
 				RetryUpdateModuleList:Inc
 				return FALSE
 			}
@@ -141,7 +143,7 @@ objectdef obj_Ship inherits obj_State
 		}
 		while ${ModuleIter:Next(exists)}
 
-		UI:Update["obj_Ship", "Ship Module Inventory", "y"]
+		UI:Update["Ship", "Ship Module Inventory", "y"]
 		
 		if ${List:First(exists)}
 			do
@@ -149,10 +151,10 @@ objectdef obj_Ship inherits obj_State
 				This.ModuleList_${List.Value}:GetIterator[ModuleIter]
 				if ${ModuleIter:First(exists)}
 				{
-					UI:Update["obj_Ship", "${List.Value}:", "g"]
+					UI:Update["Ship", "${List.Value}:", "g"]
 					do
 					{
-						UI:Update["obj_Ship", " Slot: ${ModuleIter.Value.ToItem.Slot} ${ModuleIter.Value.ToItem.Name}", "-g"]
+						UI:Update["Ship", " Slot: ${ModuleIter.Value.ToItem.Slot} ${ModuleIter.Value.ToItem.Name}", "-g"]
 					}
 					while ${ModuleIter:Next(exists)}
 				}
@@ -161,7 +163,7 @@ objectdef obj_Ship inherits obj_State
 
 		if ${This.ModuleList_AB_MWD.Used} > 1
 		{
-			UI:Update["obj_Ship", "Warning: More than 1 Afterburner or MWD was detected, I will only use the first one.", "o"]
+			UI:Update["Ship", "Warning: More than 1 Afterburner or MWD was detected, I will only use the first one.", "o"]
 		}
 		This:QueueState["WaitForStation"]
 		This:QueueState["WaitForSpace"]

@@ -19,9 +19,9 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-objectdef obj_Configuration_GridWatcher
+objectdef obj_Configuration_UndockWarp
 {
-	variable string SetName = "GridWatcher"
+	variable string SetName = "UndockWarp"
 
 	method Initialize()
 	{
@@ -40,61 +40,50 @@ objectdef obj_Configuration_GridWatcher
 	method Set_Default_Values()
 	{
 		BaseConfig.BaseRef:AddSet[${This.SetName}]
-		This.CommonRef:AddSet["Names"]
-		This.CommonRef:AddSetting["Created", True]
+
+		This.CommonRef:AddSetting[substring, "Undock"]
 	}
+
+	Setting(string, substring, Setsubstring)
+	
 }
 
-
-objectdef obj_GridWatcher inherits obj_State
+objectdef obj_UndockWarp inherits obj_State
 {
-	variable obj_Configuration_GridWatcher Config
-	variable set AlreadyDetected
+	variable obj_Configuration_UndockWarp Config
 	
 	method Initialize()
 	{
 		This[parent]:Initialize
-		PulseFrequency:Set[1000]
-		DynamicAddMiniMode("GridWatcher", "GridWatcher")
+		This.NonGameTiedPulse:Set[TRUE]
+		DynamicAddMiniMode("UndockWarp", "UndockWarp")
 	}
 	
 	method Start()
 	{
-		UI:Update["obj_GridWatcher", "Starting Grid Watch", "g"]
-		This:QueueState["WatchGrid"]
+		This:QueueState["UndockWarp"]
 	}
 	
 	method Stop()
 	{
 		This:Clear
-		UI:Update["obj_GridWatcher", "Stopping Grid Watch", "g"]
 	}
 	
-	member:bool WatchGrid()
+	member:bool UndockWarp()
 	{
-		if !${Client.InSpace} || ${Me.ToEntity.Mode} == 3
+		if ${Client.Undock}
 		{
 			return FALSE
 		}
-		variable iterator EntityNames
-		This.Config.CommonRef.FindSet[Names]:GetSettingIterator[EntityNames]
-		
-		if ${EntityNames:First(exists)}
+		if ${EVE.IsProgressWindowOpen}
 		{
-			do
+			if ${EVE.ProgressWindowTitle.Equal[Prepare to undock]}
 			{
-				if ${Entity[Name =- "${EntityNames.Value.Name}"](exists)}
-				{
-					if !${AlreadyDetected.Contains[${Entity[Name =- "${EntityNames.Value.Name}"].ID}]}
-					{
-						uplink speak "${Entity[Name =- "${EntityNames.Value.Name}"].Name} Found"
-						AlreadyDetected:Add[${Entity[Name =- "${EntityNames.Value.Name}"].ID}]
-						EVE:CreateBookmark["${Entity[Name =- "${EntityNames.Value.Name}"].Name} ${EVETime.Time.Left[-3].Replace[":",""]}"]
-					}
-				}
+				UI:Update["UndockWarp", "Triggering warp to undock bookmark, if available", "y"]
+				Client.Undock:Set[TRUE]
 			}
-			while ${EntityNames:Next(exists)}
 		}
 		return FALSE
 	}
+
 }
