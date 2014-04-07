@@ -123,7 +123,7 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 						<X>0%</X>
 						<Y>4%</Y>
 						<Width>100%</Width>
-						<Height>30%</Height>
+						<Height>35%</Height>
 						<BackgroundColor>FF000000</BackgroundColor>
 						<Border>1</Border>
 						<BorderColor>FFFFFFFF</BorderColor>
@@ -256,14 +256,70 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									if ${This.Checked}
 									{
 										UIElement[SpeedTankDistance@RatterFrame@Frame@ComBot_Ratter]:Show
+										UIElement[SpeedTankKeepRange@RatterFrame@Frame@ComBot_Ratter]:Show
+										UIElement[KeepRange@RatterFrame@Frame@ComBot_Ratter]:Hide
 									}
 									else
 									{
 										UIElement[SpeedTankDistance@RatterFrame@Frame@ComBot_Ratter]:Hide
+										UIElement[SpeedTankKeepRange@RatterFrame@Frame@ComBot_Ratter]:Hide
+										UIElement[KeepRange@RatterFrame@Frame@ComBot_Ratter]:Show
 									}
 								</OnLeftClick>
 								<OnMouseEnter>
 									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["When this option is checked, ComBot will speed tank by orbiting targets."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>
+							<Checkbox name='SpeedTankKeepRange'> 
+								<X>56%</X> 
+								<Y>65%</Y> 
+								<Width>10%</Width> 
+								<Height>9%</Height> 
+								<Text>Keep Range</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Ratter.Config.SpeedTankKeepRange}
+									{
+										This:SetChecked
+									}
+									if !${Script[ComBot].VariableScope.Ratter.Config.SpeedTank}
+									{
+										This:Hide
+									}
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Ratter.Config:SetSpeedTankKeepRange[${This.Checked}]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["When this option is checked, ComBot will keep targets at range instead of orbiting them while speed tanking."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>
+							<Checkbox name='KeepRange'> 
+								<X>34%</X> 
+								<Y>75%</Y> 
+								<Width>32%</Width> 
+								<Height>9%</Height> 
+								<Text>Keep tether pilot at range</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Ratter.Config.KeepRange}
+									{
+										This:SetChecked
+									}
+									if ${Script[ComBot].VariableScope.Ratter.Config.SpeedTank}
+									{
+										This:Hide
+									}
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Ratter.Config:SetKeepRange[${This.Checked}]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["When this option is checked, ComBot will keep your tether target at range."]
 								</OnMouseEnter>
 								<OnMouseExit>
 									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
@@ -288,6 +344,33 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 								</OnChange>
 								<OnMouseEnter>
 									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["This field is used to instruct ComBot at what range it should orbit targets while speed tanking."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</Slider>						 
+							<Text name='LocksTitle'> 
+								<X>67%</X> 
+								<Y>20%</Y> 
+								<Width>32%</Width> 
+								<Height>9%</Height> 
+								<Text>Lock ${Script[ComBot].VariableScope.Ratter.Config.Locks} targets</Text>
+							</Text>
+							<Slider name='Locks'> 
+								<X>67%</X> 
+								<Y>25%</Y> 
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Border>1</Border>
+								<OnLoad>
+									This:SetRange[10]
+									This:SetValue[${Script[ComBot].VariableScope.Ratter.Config.Locks}]
+								</OnLoad>
+								<OnChange>
+									Script[ComBot].VariableScope.Ratter.Config:SetLocks[${This.Value}]
+								</OnChange>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["This field is used to instruct ComBot how many targets to use for weapons."]
 								</OnMouseEnter>
 								<OnMouseExit>
 									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
@@ -405,9 +488,75 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
 								</OnMouseExit>
 							</Textentry>			
+							<Checkbox name='DroneControl'> 
+								<X>67%</X> 
+								<Y>40%</Y> 
+								<Width>32%</Width> 
+								<Height>9%</Height> 
+								<Text>Use DroneControl minimode targets</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Ratter.Config.DroneControl}
+									{
+										This:SetChecked
+									}
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Ratter.Config:SetDroneControl[${This.Checked}]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["When this option is checked, ComBot will use the targets from the DroneControl minimode instead of the Ratter behavior module.  Best used for ships that are primarily drone-based as EWAR will be used to help your drones."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>
+							<Checkbox name='AssistOnly'> 
+								<X>67%</X> 
+								<Y>50%</Y> 
+								<Width>32%</Width> 
+								<Height>9%</Height> 
+								<Text>Just assist</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Ratter.Config.AssistOnly}
+									{
+										This:SetChecked
+									}
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Ratter.Config:SetAssistOnly[${This.Checked}]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["When this option is checked, ComBot will not do any warping, it will just sit where you put it and kill stuff.  Speed tanking and wreck squatting will still function."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>
+							<Checkbox name='Squat'> 
+								<X>67%</X> 
+								<Y>60%</Y> 
+								<Width>32%</Width> 
+								<Height>9%</Height> 
+								<Text>Squat on the first wreck</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Ratter.Config.Squat}
+									{
+										This:SetChecked
+									}
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Ratter.Config:SetSquat[${This.Checked}]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["When this option is checked, ComBot will approach to within 2000 m of the first wreck created in the anomaly."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>
 							<Checkbox name='Tether'> 
 								<X>67%</X> 
-								<Y>65%</Y> 
+								<Y>70%</Y> 
 								<Width>32%</Width> 
 								<Height>9%</Height> 
 								<Text>Tether to a fleet member</Text>
@@ -457,7 +606,30 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 								<OnMouseExit>
 									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
 								</OnMouseExit>
-							</Textentry>						 
+							</Textentry>	
+							<Checkbox name='WarpToAnom'> 
+								<X>67%</X> 
+								<Y>10%</Y> 
+								<Width>32%</Width> 
+								<Height>9%</Height> 
+								<Text>Warp to Anomalys using EveCom</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Ratter.Config.WarpToAnom}
+									{
+										This:SetChecked
+									}
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Ratter.Config:SetWarpToAnom[${This.Checked}]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["When this option is checked, ComBot will use EveCom to scan and warp to anomalys."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>
+							
 						</Children>
 					</Frame>
 				
@@ -475,7 +647,7 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 						<X>0%</X>
 						<Y>42%</Y>
 						<Width>100%</Width>
-						<Height>30%</Height>
+						<Height>25%</Height>
 						<BackgroundColor>FF000000</BackgroundColor>
 						<Border>1</Border>
 						<BorderColor>FFFFFFFF</BorderColor>
@@ -563,7 +735,7 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									Script[ComBot].VariableScope.Ratter.Config:SetDropoffContainer[${This.Text}]
 								</OnChange>
 								<OnMouseEnter>
-									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["This field is used to supply ComBot with an identifier for your dropoff location.  If you are delivering to an Orca, this needs to contain the name of the pilot flying your Orca.  If you are delivering to a Player Owned Station structure, this needs to contain the structure's name.  This field is also used to specify the Substring for corporate bookmarks created using the Corporate Jetcan mode."]
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["This field is used to supply ComBot with an identifier for your dropoff location.  If you are delivering to an Fleet Hangar, this needs to contain the name of the pilot flying your Fleet Hangar.  If you are delivering to a Player Owned Station structure, this needs to contain the structure's name.  This field is also used to specify the Substring for corporate bookmarks created using the Corporate Jetcan mode."]
 								</OnMouseEnter>
 								<OnMouseExit>
 									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
@@ -607,15 +779,6 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 											This:AddItem[Corporation Folder 6]
 											This:AddItem[Corporation Folder 7]
 											break
-										case Orca
-											This:AddItem[Corporation Folder 1]
-											This:AddItem[Corporation Folder 2]
-											This:AddItem[Corporation Folder 3]
-											This:AddItem[Corporation Folder 4]
-											This:AddItem[Corporation Folder 5]
-											This:AddItem[Corporation Folder 6]
-											This:AddItem[Corporation Folder 7]
-											break
 									}
 									This.ItemByText["${Script[ComBot].VariableScope.Ratter.Config.DropoffSubType}"]:Select
 								</OnLoad>
@@ -650,7 +813,7 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 									<Item>Personal Hangar</Item>
 									<Item>Corporation Hangar</Item>
 									<Item>Container</Item>
-									<Item>Orca</Item>
+									<Item>Fleet Hangar</Item>
 								</Items>
 								<OnLoad>
 									This.ItemByText[${Script[ComBot].VariableScope.Ratter.Config.DropoffType}]:Select
@@ -694,22 +857,14 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter]:Show
 											UIElement[DropoffTitle@DropoffFrame@Frame@ComBot_Ratter]:SetText[Container Bookmark]
 											break
-										case Orca
-											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter]:AddItem[Corporation Folder 1]
-											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter]:AddItem[Corporation Folder 2]
-											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter]:AddItem[Corporation Folder 3]
-											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter]:AddItem[Corporation Folder 4]
-											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter]:AddItem[Corporation Folder 5]
-											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter]:AddItem[Corporation Folder 6]
-											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter]:AddItem[Corporation Folder 7]
-											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter].ItemByText["${Script[ComBot].VariableScope.Ratter.Config.DropoffSubType}"]:Select
-											UIElement[DropoffSubTypeTitle@DropoffFrame@Frame@ComBot_Ratter]:SetText[Corporate Folder]
+										case Fleet Hangar
 											UIElement[DropoffContainer@DropoffFrame@Frame@ComBot_Ratter]:Show
-											UIElement[DropoffContainerTitle@DropoffFrame@Frame@ComBot_Ratter]:SetText[Orca Pilot Name]
+											UIElement[DropoffContainerTitle@DropoffFrame@Frame@ComBot_Ratter]:SetText[Fleet Hangar Pilot Name]
 											UIElement[DropoffContainerTitle@DropoffFrame@Frame@ComBot_Ratter]:Show
-											UIElement[DropoffSubTypeTitle@DropoffFrame@Frame@ComBot_Ratter]:Show
-											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter]:Show
+											UIElement[DropoffSubTypeTitle@DropoffFrame@Frame@ComBot_Ratter]:Hide
+											UIElement[DropoffSubType@DropoffFrame@Frame@ComBot_Ratter]:Hide
 											UIElement[DropoffTitle@DropoffFrame@Frame@ComBot_Ratter]:SetText[Mining System Bookmark]
+											Script[ComBot].VariableScope.Ratter.Config:SetDropoffSubType[\"\"]
 											break
 										case Personal Hangar
 											UIElement[DropoffSubTypeTitle@DropoffFrame@Frame@ComBot_Ratter]:Hide
@@ -730,6 +885,163 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 								</OnMouseExit>
 							</listbox>
 				
+						</Children>
+					</Frame>
+					
+					<Text name='AmmoFrameTitle'> 
+						<X>1%</X> 
+						<Y>68%</Y> 
+						<Width>32%</Width> 
+						<Height>4%</Height> 
+						<Text>Ammo Configuration</Text>
+						<OnLoad>
+							This.Font:SetColor[FFFFFF00]
+						</OnLoad>
+					</Text>
+					<Frame name="AmmoFrame">
+						<X>0%</X>
+						<Y>70%</Y>
+						<Width>100%</Width>
+						<Height>9%</Height>
+						<BackgroundColor>FF000000</BackgroundColor>
+						<Border>1</Border>
+						<BorderColor>FFFFFFFF</BorderColor>
+						<Children>
+							<Text name='AmmoTitle'> 
+								<X>1%</X> 
+								<Y>5%</Y> 
+								<Width>32%</Width> 
+								<Height>5%</Height> 
+								<Alignment>Center</Alignment>
+								<Text>Ammo</Text>
+							</Text>						 
+							<Textentry Name="Ammo">
+								<BackgroundColor>FF000000</BackgroundColor>
+								<Border>1</Border>
+								<BorderColor>FFFFFFFF</BorderColor>
+								<X>1%</X>
+								<Y>30%</Y>
+								<Width>32%</Width>
+								<Height>50%</Height>
+								<OnLoad>
+									This:SetText[${Script[ComBot].VariableScope.Ratter.Config.Ammo}]
+								</OnLoad>
+								<OnChange>
+									if ${This.Text.Length}
+									{
+										Script[ComBot].VariableScope.Ratter.Config:SetAmmo[${This.Text}]
+									}
+									else
+									{
+										Script[ComBot].VariableScope.Ratter.Config:SetAmmo[\"\"]
+									}
+									UIElement[AmmoList@AmmoFrame@Frame@ComBot_Ratter]:Show
+									UIElement[AmmoList@AmmoFrame@Frame@ComBot_Ratter]:SetZOrder[movetop]
+									Script[ComBot].VariableScope.Ratter.LocalUI:Start
+								</OnChange>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["This field needs to contain the exact name of your ammo."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</Textentry>
+							<listbox Name="AmmoList">
+								<BackgroundColor>FF000000</BackgroundColor>
+								<Border>1</Border>
+								<BorderColor>FFFFFFFF</BorderColor>
+								<X>1%</X>
+								<Y>60%</Y>
+								<Width>32%</Width>
+								<Height>70%</Height>
+								<OnLoad>
+									This:Hide
+								</OnLoad>
+								<OnSelect>
+									UIElement[Ammo@AmmoFrame@Frame@ComBot_Ratter]:SetText[${This.SelectedItem.Text}]
+									Script[ComBot].VariableScope.Ratter.Config:SetAmmo[${This.SelectedItem.Text}]
+									Script[ComBot].VariableScope.Ratter.LocalUI:Stop
+									This:Hide
+								</OnSelect>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["This field needs to contain the exact name of your ammo."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</listbox>
+							<Text name='AmmoSupplyTitle'> 
+								<X>34%</X> 
+								<Y>5%</Y> 
+								<Width>32%</Width> 
+								<Height>5%</Height> 
+								<Alignment>Center</Alignment>
+								<Text>Resupply threshold</Text>
+							</Text>						 
+							<Textentry Name="AmmoSupply">
+								<BackgroundColor>FF000000</BackgroundColor>
+								<Border>1</Border>
+								<BorderColor>FFFFFFFF</BorderColor>
+								<X>34%</X>
+								<Y>30%</Y>
+								<Width>32%</Width>
+								<Height>50%</Height>
+								<OnLoad>
+									This:SetText[${Script[ComBot].VariableScope.Ratter.Config.AmmoSupply}]
+								</OnLoad>
+								<OnChange>
+									if ${This.Text.Length}
+									{
+										Script[ComBot].VariableScope.Ratter.Config:SetAmmoSupply[${This.Text}]
+									}
+									else
+									{
+										Script[ComBot].VariableScope.Ratter.Config:SetAmmoSupply[0]
+									}
+								</OnChange>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["This field determines when ComBot should go to the dropoff location to load more ammo."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</Textentry>
+							<Text name='AmmoCapTitle'> 
+								<X>67%</X> 
+								<Y>5%</Y> 
+								<Width>32%</Width> 
+								<Height>5%</Height> 
+								<Alignment>Center</Alignment>
+								<Text>Resupply threshold</Text>
+							</Text>						 
+							<Textentry Name="AmmoCap">
+								<BackgroundColor>FF000000</BackgroundColor>
+								<Border>1</Border>
+								<BorderColor>FFFFFFFF</BorderColor>
+								<X>67%</X>
+								<Y>30%</Y>
+								<Width>32%</Width>
+								<Height>50%</Height>
+								<OnLoad>
+									This:SetText[${Script[ComBot].VariableScope.Ratter.Config.AmmoCap}]
+								</OnLoad>
+								<OnChange>
+									if ${This.Text.Length}
+									{
+										Script[ComBot].VariableScope.Ratter.Config:SetAmmoCap[${This.Text}]
+									}
+									else
+									{
+										Script[ComBot].VariableScope.Ratter.Config:SetAmmoCap[0]
+									}
+								</OnChange>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText["This field determines how much ammo ComBot should load.  Use 0 to indicate ComBot should fill your cargo hold."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@Frame@ComBot_Ratter]:SetText[""]
+								</OnMouseExit>
+							</Textentry>
 						</Children>
 					</Frame>
 					

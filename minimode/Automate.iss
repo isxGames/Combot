@@ -30,7 +30,6 @@ objectdef obj_Configuration_Automate
 			UI:Update["Automate", " ${This.SetName} settings missing - initializing", "o"]
 			This:Set_Default_Values[]
 		}
-		UI:Update["Automate", " ${This.SetName}: Initialized", "-g"]
 	}
 
 	member:settingsetref CommonRef()
@@ -60,6 +59,7 @@ objectdef obj_Configuration_Automate
 	Setting(bool, ScheduleLogout, SetScheduleLogout)
 	Setting(string, Bookmark, SetBookmark)
 	Setting(bool, Launch, SetLaunch)
+	Setting(bool, Downtime, SetDowntime)
 	Setting(string, LaunchCommand, SetLaunchCommand)
 }
 
@@ -100,9 +100,17 @@ objectdef obj_Automate inherits obj_State
 				UI:Update["Automate", "Starting in \ao${Delta}\ag minutes", "g"]
 				This:QueueState["AllowLogin", ${Math.Calc[${Delta} * 60000]}.Int]
 				This:QueueState["WaitForLogin"]
-				This:QueueState["AutoStart"]
 				This:QueueState["Launch"]
 			}
+			else
+			{
+				This:QueueState["WaitForLogin"]
+				This:QueueState["Launch"]
+			}
+		}
+		else
+		{
+			This:QueueState["Launch"]
 		}
 		if ${Config.TimedLogout}
 		{
@@ -179,6 +187,7 @@ objectdef obj_Automate inherits obj_State
 	{
 		if ${Me(exists)} && ${MyShip(exists)} && (${Me.InSpace} || ${Me.InStation})
 		{
+			echo Logged in
 			return TRUE
 		}
 		return FALSE
@@ -192,18 +201,41 @@ objectdef obj_Automate inherits obj_State
 	
 	member:bool Launch()
 	{
+		echo Launching ${Config.LaunchCommand}
 		if ${Config.Launch}
-		execute ${Config.LaunchCommand}
+		{
+			execute ${Config.LaunchCommand}
+		}
 		return TRUE
 	}
 	
+	method DeltaLogoutNow()
+	{
+		variable int Logout=${Math.Rand[${Config.LogoutDelta} + 1]}
+		UI:Update["Automate", "Logout will proceed in \ao${Logout}\ag minutes", "g"]
+		This:Clear
+		This:QueueState["Idle", ${Math.Calc[${Logout} * 60000].Int}
+		This:QueueState["MoveToLogout"]
+		This:QueueState["Traveling"]
+		This:QueueState["Logout"]
+	}
+
 	method LogoutNow()
 	{
-		Move:NonGameTiedPulse:Set[TRUE]
+		UI:Update["Automate", "Logout time!", "r"]
 		This:Clear
 		This:QueueState["MoveToLogout"]
 		This:QueueState["Traveling"]
 		This:QueueState["Logout"]
+	}
+	
+	
+	method GotoLogoutNow()
+	{
+		UI:Update["Automate", "Going Home!", "r"]
+		This:Clear
+		This:QueueState["MoveToLogout"]
+		This:QueueState["Traveling"]
 	}
 
 	method StationaryLogoutNow()
@@ -212,12 +244,15 @@ objectdef obj_Automate inherits obj_State
 		This:QueueState["Logout"]
 	}
 	
-	
 	member:bool MoveToLogout()
 	{
+		if ${Busy.IsBusy}
+		{
+			UI:Update["Automate", "Waiting for drones", "y"]
+			return FALSE
+		}
 		variable iterator Behaviors
-		Move:NonGameTiedPulse:Set[TRUE]
-		UI:Update["Automate", "Logout time!", "r"]
+		Move.NonGameTiedPulse:Set[TRUE]
 		Dynamic.Behaviors:GetIterator[Behaviors]
 		if ${Behaviors:First(exists)}
 		{
@@ -227,6 +262,7 @@ objectdef obj_Automate inherits obj_State
 			}
 			while ${Behaviors:Next(exists)}
 		}
+		UIElement[Run@TitleBar@ComBot]:SetText[Run]
 		Move:Clear
 		Move.Traveling:Set[FALSE]
 		Move:Bookmark[${Config.Bookmark}]
@@ -284,18 +320,18 @@ objectdef obj_AutomateUI inherits obj_State
 		Bookmarks:GetIterator[BookmarkIterator]
 		
 
-		UIElement[BookmarkList@AutoLogout@ComBot_Automate_Frame@ComBot_Automate]:ClearItems
+		UIElement[BookmarkList@AutoLogoutFrame@ComBot_Automate_Frame@ComBot_Automate]:ClearItems
 		if ${BookmarkIterator:First(exists)}
 			do
 			{	
-				if ${UIElement[Bookmark@AutoLogout@ComBot_Automate_Frame@ComBot_Automate].Text.Length}
+				if ${UIElement[Bookmark@AutoLogoutFrame@ComBot_Automate_Frame@ComBot_Automate].Text.Length}
 				{
 					if ${BookmarkIterator.Value.Label.Left[${Automate.Config.Bookmark.Length}].Equal[${Automate.Config.Bookmark}]}
-						UIElement[BookmarkList@AutoLogout@ComBot_Automate_Frame@ComBot_Automate]:AddItem[${BookmarkIterator.Value.Label.Escape}]
+						UIElement[BookmarkList@AutoLogoutFrame@ComBot_Automate_Frame@ComBot_Automate]:AddItem[${BookmarkIterator.Value.Label.Escape}]
 				}
 				else
 				{
-					UIElement[BookmarkList@AutoLogout@ComBot_Automate_Frame@ComBot_Automate]:AddItem[${BookmarkIterator.Value.Label.Escape}]
+					UIElement[BookmarkList@AutoLogoutFrame@ComBot_Automate_Frame@ComBot_Automate]:AddItem[${BookmarkIterator.Value.Label.Escape}]
 				}
 			}
 			while ${BookmarkIterator:Next(exists)}

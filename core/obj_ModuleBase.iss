@@ -25,7 +25,7 @@ objectdef obj_ModuleBase inherits obj_State
 	variable bool Deactivated = FALSE
 	variable int64 CurrentTarget = -1
 	variable int64 ModuleID
-	
+
 	method Initialize(int64 ID)
 	{
 		This[parent]:Initialize
@@ -34,17 +34,17 @@ objectdef obj_ModuleBase inherits obj_State
 		NonGameTiedPulse:Set[TRUE]
 		PulseFrequency:Set[50]
 	}
-	
+
 	member:bool IsActive()
 	{
 		return ${Activated}
 	}
-	
+
 	member:bool IsDeactivating()
 	{
 		return ${Deactivated}
 	}
-	
+
 	member:bool IsActiveOn(int64 checkTarget)
 	{
 		if (${This.CurrentTarget.Equal[${checkTarget}]})
@@ -56,7 +56,7 @@ objectdef obj_ModuleBase inherits obj_State
 		}
 		return FALSE
 	}
-	
+
 	method Deactivate()
 	{
 		if !${Deactivated}
@@ -64,11 +64,11 @@ objectdef obj_ModuleBase inherits obj_State
 			MyShip.Module[${ModuleID}]:Deactivate
 			Deactivated:Set[TRUE]
 			This:Clear
-			This:QueueState["WaitTillInactive"]
+			This:QueueState["WaitTillInactive", 50, 0]
 		}
 	}
-	
-	method Activate(int64 newTarget=-1, bool DoDeactivate=TRUE)
+
+	method Activate(int64 newTarget=-1, bool DoDeactivate=TRUE, int DeactivatePercent=100)
 	{
 		if ${DoDeactivate} && ${This.IsActive}
 		{
@@ -78,9 +78,13 @@ objectdef obj_ModuleBase inherits obj_State
 		{
 			This:QueueState["LoadMiningCrystal", 50, ${Entity[${newTarget}].Type}]
 		}
-		
+
 		This:QueueState["ActivateOn", 50, "${newTarget}"]
 		This:QueueState["WaitTillActive", 50, 20]
+		if ${DeactivatePercent} < 100
+		{
+			This:QueueState["DeactivatePercent", 50, ${DeactivatePercent}]
+		}
 		This:QueueState["WaitTillInactive"]
 		if ${DoDeactivate}
 		{
@@ -88,42 +92,42 @@ objectdef obj_ModuleBase inherits obj_State
 			Activated:Set[TRUE]
 		}
 	}
-	
+
 	member:bool LoadMiningCrystal(string OreType)
 	{
 		variable index:item Crystals
 		variable iterator Crystal
-		if ${OreType.Find[${MyShip.Module[${ModuleID}].Charge.Name.Token[1," "]}]}
+		if ${OreType.Find[${MyShip.Module[${ModuleID}].Charge.Type.Token[1," "]}]}
 		{
 			return TRUE
 		}
 		else
 		{
 			MyShip.Module[${ModuleID}]:GetAvailableAmmo[Crystals]
-			
+
 			if ${Crystals.Used} == 0
 			{
 				UI:Update["obj_Module", "No crystals available - mining ouput decreased", "o"]
 			}
-			
+
 			Crystals:GetIterator[Crystal]
-			
+
 			if ${Crystal:First(exists)}
 			do
 			{
 				if ${OreType.Find[${Crystal.Value.Name.Token[1, " "]}](exists)}
 				{
 					UI:Update["obj_Module", "Switching Crystal to ${Crystal.Value.Name}"]
-					Me.Ship.Module[${ModuleID}]:ChangeAmmo[${Crystal.Value.ID},1]
+					MyShip.Module[${ModuleID}]:ChangeAmmo[${Crystal.Value.ID},1]
 					return TRUE
 				}
 			}
 			while ${Crystal:Next(exists)}
 		}
-		
+
 		return TRUE
 	}
-	
+
 	member:bool ActivateOn(int64 newTarget)
 	{
 		if ${newTarget} == -1 || ${newTarget} == 0
@@ -148,7 +152,7 @@ objectdef obj_ModuleBase inherits obj_State
 		CurrentTarget:Set[${newTarget}]
 		return TRUE
 	}
-	
+
 	member:bool WaitTillActive(int countdown)
 	{
 		if ${countdown} > 0
@@ -158,11 +162,39 @@ objectdef obj_ModuleBase inherits obj_State
 		}
 		return TRUE
 	}
-	
-	member:bool WaitTillInactive()
+
+	member:bool DeactivatePercent(int Percent=100)
 	{
+		if ${Percent} == 100
+		{
+			return TRUE
+		}
+		if  ${Math.Calc[((${EVETime.AsInt64} - ${MyShip.Module[${ModuleID}].TimeLastClicked.AsInt64}) / ${MyShip.Module[${ModuleID}].ActivationTime}) * 100]} > ${Percent}
+		{
+			MyShip.Module[${ModuleID}]:Deactivate
+			Deactivated:Set[TRUE]
+			This:Clear
+			This:InsertState["WaitTillInactive", 50, 0]
+			return TRUE
+		}
+		return FALSE
+	}
+
+	member:bool WaitTillInactive(int Count = -1)
+	{
+		if ${Count} > 50
+		{
+			MyShip.Module[${ModuleID}]:Deactivate
+			This:InsertState["WaitTillInactive", 50, 0]
+			return TRUE
+		}
 		if ${MyShip.Module[${ModuleID}].IsActive}
 		{
+			if ${Count} >= 0
+			{
+				This:InsertState["WaitTillInactive", 50, ${Count:Inc}]
+				return TRUE
+			}
 			return FALSE
 		}
 		Activated:Set[FALSE]
@@ -170,7 +202,7 @@ objectdef obj_ModuleBase inherits obj_State
 		CurrentTarget:Set[-1]
 		return TRUE
 	}
-	
+
 	member:float Range()
 	{
 		if ${MyShip.Module[${ModuleID}].TransferRange(exists)}
@@ -190,7 +222,7 @@ objectdef obj_ModuleBase inherits obj_State
 			return ${Math.Calc[${MyShip.Module[${ModuleID}].Charge.MaxFlightTime} * ${MyShip.Module[${ModuleID}].Charge.MaxVelocity}]}
 		}
 	}
-	
+
 	member:string GetFallthroughObject()
 	{
 		return "MyShip.Module[${ModuleID}]"

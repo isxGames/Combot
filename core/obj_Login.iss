@@ -21,22 +21,19 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 
 objectdef obj_EVEExtension
 {
-	variable bool Ready=FALSE
 	variable string Character=""
 	
 	function Initialize()
 	{
 		do
 		{
-			if ${ISXEVE(exists)}
+			if !${ISXEVE(exists)}
 			{
-				break
+				extension ISXEVE
 			}
-			extension ISXEVE
 			wait 10
 		}
 		while !${ISXEVE(exists)} || !${ISXEVE.IsReady}
-		Ready:Set[TRUE]
 	}
 }
 
@@ -172,10 +169,9 @@ objectdef obj_Login inherits obj_State
 		Login:SetPassword[${Config.Common.Password}]
 		Login:Connect
 		UI:Update["obj_Login", "Login command sent", "g"]
-		This:Clear
-		This:QueueState["Idle", 20000]
-		This:QueueState["Login"]
-		This:QueueState["SelectCharacter"]
+		This:InsertState["SelectCharacter"]
+		This:InsertState["Login"]
+		This:InsertState["Idle", 20000]
 		return TRUE
 	}
 	

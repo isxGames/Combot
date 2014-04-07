@@ -27,10 +27,9 @@ objectdef obj_Configuration_AutoModule
 	{
 		if !${BaseConfig.BaseRef.FindSet[${This.SetName}](exists)}
 		{
-			UI:Update["obj_Configuration", " ${This.SetName} settings missing - initializing", "o"]
+			UI:Update["Configuration", " ${This.SetName} settings missing - initializing", "o"]
 			This:Set_Default_Values[]
 		}
-		UI:Update["obj_Configuration", " ${This.SetName}: Initialized", "-g"]
 	}
 
 	member:settingsetref CommonRef()
@@ -73,11 +72,14 @@ objectdef obj_Configuration_AutoModule
 objectdef obj_AutoModule inherits obj_State
 {
 	variable obj_Configuration_AutoModule Config
+	variable bool SafetyOveride=FALSE
+	variable bool DropCloak=FALSE
 	
 	method Initialize()
 	{
 		This[parent]:Initialize
 		This.NonGameTiedPulse:Set[TRUE]
+		This.PulseFrequency:Set[100]
 		DynamicAddMiniMode("AutoModule", "AutoModule")
 	}
 	
@@ -93,7 +95,7 @@ objectdef obj_AutoModule inherits obj_State
 	
 	member:bool AutoModule()
 	{
-		if !${Client.InSpace}
+		if !${Client.InSpace} || ${SafetyOveride}
 		{
 			return FALSE
 		}
@@ -103,7 +105,20 @@ objectdef obj_AutoModule inherits obj_State
 		}
 		if ${Ship.ModuleList_Cloaks.Count} && ${Config.Cloak}
 		{
-			Ship.ModuleList_Cloaks:Activate
+			if ${This.DropCloak}
+			{
+				if ${Ship.ModuleList_Cloaks.ActiveCount}
+				{
+					Ship.ModuleList_Cloaks:Deactivate
+				}
+			}
+			else
+			{
+				if !${Ship.ModuleList_Cloaks.ActiveCount}
+				{
+					Ship.ModuleList_Cloaks:Activate
+				}
+			}
 		}
 
 		if ${Ship.ModuleList_Regen_Shield.InactiveCount} && ((${MyShip.ShieldPct} < ${Config.ActiveShieldBoost} && ${MyShip.CapacitorPct} > ${Config.ActiveShieldCap}) || ${Config.ShieldBoost})
@@ -151,7 +166,8 @@ objectdef obj_AutoModule inherits obj_State
 
 		if ${Ship.ModuleList_DroneControlUnit.ActiveCount} < ${Ship.ModuleList_DroneControlUnit.Count} && ${Config.DroneControlUnit}
 		{
-			Ship.ModuleList_DroneControlUnit:ActivateCount[${Math.Calc[${Ship.ModuleList_DroneControlUnit.Count} - ${Ship.ModuleList_DroneControlUnit.ActiveCount}]}]
+			UI:Update["AutoModule", "Activating DroneControlUnit", "g"]
+			Ship.ModuleList_DroneControlUnit:ActivateCount[${Math.Calc[${Ship.ModuleList_DroneControlUnit.Count} - ${Ship.ModuleList_DroneControlUnit.ActiveCount}]}, FALSE]
 		}
 		
 		return FALSE

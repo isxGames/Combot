@@ -27,10 +27,10 @@ objectdef obj_Configuration_Ratter
 	{
 		if !${BaseConfig.BaseRef.FindSet[${This.SetName}](exists)}
 		{
-			UI:Update["obj_Configuration", " ${This.SetName} settings missing - initializing", "o"]
+			UI:Update["Configuration", " ${This.SetName} settings missing - initializing", "o"]
 			This:Set_Default_Values[]
 		}
-		UI:Update["obj_Configuration", " ${This.SetName}: Initialized", "-g"]
+		UI:Update["Configuration", " ${This.SetName}: Initialized", "-g"]
 	}
 
 	member:settingsetref CommonRef()
@@ -38,7 +38,7 @@ objectdef obj_Configuration_Ratter
 		return ${BaseConfig.BaseRef.FindSet[${This.SetName}]}
 	}
 
-	
+
 	method Set_Default_Values()
 	{
 		BaseConfig.BaseRef:AddSet[${This.SetName}]
@@ -51,18 +51,28 @@ objectdef obj_Configuration_Ratter
 		This.CommonRef:AddSetting[DropoffSubType,""]
 		This.CommonRef:AddSetting[DropoffContainer,""]
 		This.CommonRef:AddSetting[SpeedTankDistance,5000]
+		This.CommonRef:AddSetting[Locks,4]
 		This.CommonRef:AddSetting[TetherPilot,""]
-		
+
 	}
-	
+
+	Setting(bool, AssistOnly, SetAssistOnly)
+	Setting(bool, WarpToAnom, SetWarpToAnom)
 	Setting(bool, BeltRat, SetBeltRat)
 	Setting(bool, Salvage, SetSalvage)
 	Setting(bool, SpeedTank, SetSpeedTank)
+	Setting(bool, SpeedTankKeepRange, SetSpeedTankKeepRange)
 	Setting(bool, Tether, SetTether)
+	Setting(bool, KeepRange, SetKeepRange)
+	Setting(bool, Squat, SetSquat)
+	Setting(bool, DroneControl, SetDroneControl)
 	Setting(int, Warp, SetWarp)
+	Setting(int, Locks, SetLocks)
 	Setting(int, Threshold, SetThreshold)
 	Setting(int, SpeedTankDistance, SetSpeedTankDistance)
-	Setting(string, RattingSystem, SetRattingSystem)	
+	Setting(int, AmmoSupply, SetAmmoSupply)
+	Setting(int, AmmoCap, SetAmmoCap)
+	Setting(string, RattingSystem, SetRattingSystem)
 	Setting(string, Substring, SetSubstring)
 	Setting(string, Dropoff, SetDropoff)
 	Setting(string, DropoffType, SetDropoffType)
@@ -70,22 +80,27 @@ objectdef obj_Configuration_Ratter
 	Setting(string, DropoffContainer, SetDropoffContainer)
 	Setting(string, SalvagePrefix, SetSalvagePrefix)
 	Setting(string, TetherPilot, SetTetherPilot)
+	Setting(string, Ammo, SetAmmo)
 }
 
 objectdef obj_Ratter inherits obj_State
 {
 	variable obj_Configuration_Ratter Config
 	variable obj_RatterUI LocalUI
-	
+
 	variable obj_TargetList Rats
 	variable index:entity Belts
 	variable index:bookmark Bookmarks
+	variable int64 CurrentTarget
+	variable int64 FirstWreck=0
+	variable int FinishedDelay
+	variable int64 Orbiting
 
 	method Initialize()
 	{
 		This[parent]:Initialize
-		PulseFrequency:Set[500]
-		Rats:AddAllNPCs
+		PulseFrequency:Set[1500]
+
 		DynamicAddBehavior("Ratter", "Ratter")
 	}
 
@@ -93,70 +108,175 @@ objectdef obj_Ratter inherits obj_State
 	{
 		This:DeactivateStateQueueDisplay
 		This:Clear
-	}	
-	
+	}
+
 	method Start()
 	{
+		variable iterator classIterator
+		variable iterator groupIterator
+		variable string groups = ""
+		variable string seperator = ""
+
+		Rats:ClearQueryString
+
+
+		PriorityTargets.Scramble:GetIterator[groupIterator]
+		if ${groupIterator:First(exists)}
+		{
+			do
+			{
+				groups:Concat[${seperator}Name =- "${groupIterator.Value}"]
+				seperator:Set[" || "]
+			}
+			while ${groupIterator:Next(exists)}
+		}
+		Rats:AddQueryString["Distance < 150000 && IsNPC && !IsMoribund && (${groups})"]
+
+		seperator:Set[""]
+		groups:Set[""]
+		PriorityTargets.Neut:GetIterator[groupIterator]
+		if ${groupIterator:First(exists)}
+		{
+			do
+			{
+				groups:Concat[${seperator}Name =- "${groupIterator.Value}"]
+				seperator:Set[" || "]
+			}
+			while ${groupIterator:Next(exists)}
+		}
+		Rats:AddQueryString["Distance < 150000 && IsNPC && !IsMoribund && (${groups})"]
+
+		seperator:Set[""]
+		groups:Set[""]
+		PriorityTargets.ECM:GetIterator[groupIterator]
+		if ${groupIterator:First(exists)}
+		{
+			do
+			{
+				groups:Concat[${seperator}Name =- "${groupIterator.Value}"]
+				seperator:Set[" || "]
+			}
+			while ${groupIterator:Next(exists)}
+		}
+		Rats:AddQueryString["Distance < 150000 && IsNPC && !IsMoribund && (${groups})"]
+
+
+
+		NPCData.BaseRef:GetSetIterator[classIterator]
+		if ${classIterator:First(exists)}
+		{
+			do
+			{
+				seperator:Set[""]
+				groups:Set[""]
+				classIterator.Value:GetSettingIterator[groupIterator]
+				if ${groupIterator:First(exists)}
+				{
+					do
+					{
+						groups:Concat["${seperator}GroupID = ${groupIterator.Key}"]
+						seperator:Set[" || "]
+					}
+					while ${groupIterator:Next(exists)}
+				}
+				Rats:AddQueryString["Distance < 150000 && IsNPC && !IsMoribund && (${groups})"]
+			}
+			while ${classIterator:Next(exists)}
+		}
+
+		Rats:AddTargetingMe
+		Rats:SetIPCName[Rats]
+		Rats.UseIPC:Set[TRUE]
+		Rats.AutoLock:Set[FALSE]
+		DroneControl.DroneTargets.AutoLock:Set[FALSE]
+
+
 		UI:Update["obj_Ratter", "Started", "g"]
 		This:AssignStateQueueDisplay[DebugStateList@Debug@ComBotTab@ComBot]
 		if ${This.IsIdle}
 		{
-			This:QueueState["OpenCargoHold"]
-			This:QueueState["CheckCargoHold"]
+			if ${Config.AssistOnly}
+			{
+				This:QueueState["DropCloak", 50, TRUE]
+				This:QueueState["Rat"]
+			}
+			else
+			{
+				This:QueueState["CheckCargoHold"]
+			}
 		}
 	}
-	
+
 	method Stop()
 	{
 		This:DeactivateStateQueueDisplay
 		This:Clear
+		noop This.DropCloak[FALSE]
 	}
-	
-	member:bool OpenCargoHold()
-	{
-		if !${EVEWindow[ByName, "Inventory"](exists)}
-		{
-			UI:Update["Ratter", "Opening inventory", "g"]
-			MyShip:Open
-			return FALSE
-		}
-		return TRUE
-	}
-	
+
+
 	member:bool CheckCargoHold()
 	{
-		if ${MyShip.UsedCargoCapacity} / ${MyShip.CargoCapacity} >= ${Config.Threshold} * .01
+		variable index:item Items
+		variable iterator ItemIterator
+		variable int AmmoCount=0
+		variable string Reload=""
+
+		if !${Client.Inventory}
 		{
-			UI:Update["Ratter", "Unload trip required", "g"]
-			Cargo:At[${Config.Dropoff},${Config.DropoffType},${Config.DropoffSubType}, ${Config.DropoffContainer}]:Unload
+			return FALSE
+		}
+
+		MyShip:GetCargo[Items]
+		Items:GetIterator[ItemIterator]
+
+		if ${Config.Ammo.Length} > 0
+		{
+			if ${ItemIterator:First(exists)}
+				do
+				{
+					if ${ItemIterator.Value.Name.Equal[${Config.Ammo}]}
+					{
+						AmmoCount:Inc[${ItemIterator.Value.Quantity}]
+					}
+				}
+				while ${ItemIterator:Next(exists)}
+			Reload:Set[":Load[Name =- \"${Config.Ammo}\", ${Config.AmmoCap}]"]
+		}
+
+
+		if 	${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].UsedCapacity} / ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].Capacity} > ${Config.Threshold} * .01 ||\
+			${AmmoCount} < ${Config.AmmoSupply}
+		{
+			UI:Update["Ratter", "Unload/Reload trip required", "g"]
+			Cargo:At[${Config.Dropoff},${Config.DropoffType},${Config.DropoffSubType}, ${Config.DropoffContainer}]:Unload${Reload}
 			This:QueueState["Traveling"]
-			This:QueueState["OpenCargoHold"]
 			This:QueueState["CheckCargoHold"]
 			return TRUE
 		}
-		else
-		{
-			This:QueueState["GoToRattingSystem"]
-			This:QueueState["Traveling"]
-			This:QueueState["MoveToNewRatLocation"]
-			This:QueueState["Traveling"]
-			This:QueueState["VerifyRatLocation"]
-			This:QueueState["Log", 10, "Waiting for rats to spawn, g"]
-			This:QueueState["Idle", 5000]
-			This:QueueState["InitialUpdate"]
-			This:QueueState["Updated"]
-			This:QueueState["Log", 10, "Ratting, g"]
-			This:QueueState["Rat"]
-			return TRUE
-		}
+
+		This:QueueState["GoToRattingSystem"]
+		This:QueueState["Traveling"]
+		This:QueueState["Reload"]
+		This:QueueState["ClearOldBookmarks"]
+		This:QueueState["MoveToNewRatLocation"]
+		This:QueueState["Traveling"]
+		This:QueueState["VerifyRatLocation"]
+		This:QueueState["InitialUpdate"]
+		This:QueueState["Updated"]
+		This:QueueState["Log", 10, "Ratting, g"]
+		This:QueueState["DropCloak", 50, TRUE]
+		This:QueueState["Rat"]
+		This:QueueState["DropCloak", 50, FALSE]
+		return TRUE
 	}
-	
+
 	member:bool Log(string text, string color)
 	{
 		UI:Update["Ratter", "${text}", "${color}"]
 		return TRUE
 	}
-	
+
 	member:bool GoToRattingSystem()
 	{
 		if !${EVE.Bookmark[${Config.RattingSystem}](exists)}
@@ -169,28 +289,86 @@ objectdef obj_Ratter inherits obj_State
 		}
 		return TRUE
 	}
-	
-	
+
+
 	member:bool Traveling()
 	{
-		if ${Move.Traveling} || ${Me.ToEntity.Mode} == 3
+		if ${Move.Traveling} || ${Cargo.Processing} || ${Me.ToEntity.Mode} == 3
 		{
 			return FALSE
 		}
 		return TRUE
 	}
-	
-	
-	member:bool MoveToNewRatLocation()
+
+	member:bool Reload()
 	{
-		if ${Config.Tether}
+		EVE:Execute[CmdReloadAmmo]
+		return TRUE
+	}
+
+	member:bool RemoveSavedSpot()
+	{
+		Move:RemoveSavedSpot
+		return TRUE
+	}
+
+	member:bool ClearOldBookmarks(bool RefreshBookmarks=FALSE)
+	{
+		if !${RefreshBookmarks}
 		{
-			Move:Fleetmember[${Local["${Config.TetherPilot}"].ID}, TRUE]
+			EVE:RefreshBookmarks
+			This:InsertState["ClearOldBookmarks", 3000, TRUE]
 			return TRUE
 		}
+
+		variable index:bookmark Bookmarks
+		variable iterator BookmarkIterator
+		EVE:GetBookmarks[Bookmarks]
+		Bookmarks:GetIterator[BookmarkIterator]
+
+		if ${BookmarkIterator:First(exists)}
+		do
+		{
+			if ${BookmarkIterator.Value.Label.Left[${Config.SalvagePrefix.Length}].Upper.Equal[${Config.SalvagePrefix}]} && \
+				${BookmarkIterator.Value.CreatorID} == ${Me.CharID}
+			{
+				if ${BookmarkIterator.Value.Created.AsInt64} + 72000000000 < ${EVETime.AsInt64}
+				{
+					UI:Update["Ratter", "Removing old bookmark - ${BookmarkIterator.Value.Label}", "o", TRUE]
+					BookmarkIterator.Value:Remove
+					return FALSE
+				}
+			}
+		}
+		while ${BookmarkIterator:Next(exists)}
+
+		return TRUE
+	}
+
+	member:bool MoveToNewRatLocation()
+	{
 		variable int Distance
 		Distance:Set[${Math.Calc[${Config.Warp} * 1000]}]
-		if ${Bookmarks.Used} == 0
+
+		if ${Move.SavedSpotExists}
+		{
+			Move:GotoSavedSpot
+			This:InsertState["RemoveSavedSpot"]
+			This:InsertState["Traveling", 2000]
+			This:InsertState["Reload"]
+			return TRUE
+		}
+
+		if ${Config.Tether}
+		{
+			if !${Entity[Name =- "${Config.TetherPilot}"](exists)}
+			{
+				Move:Fleetmember[${Local["${Config.TetherPilot}"].ID}, TRUE, ${Distance}]
+				return TRUE
+			}
+		}
+
+		if ${Bookmarks.Used} == 0 && !${Config.WarpToAnom} && !${Config.Tether}
 		{
 			EVE:GetBookmarks[Bookmarks]
 			Bookmarks:RemoveByQuery[${LavishScript.CreateQuery[SolarSystemID == ${Me.SolarSystemID}]}, FALSE]
@@ -211,45 +389,72 @@ objectdef obj_Ratter inherits obj_State
 						EVE:QueryEntities[Belts, "GroupID = GROUP_ASTEROIDBELT"]
 					}
 
-					Move:Object[${Entity[${Belts[1].ID}]}, ${Distance}]
+					Move:Object[${Entity[${Belts[1].ID}]}, ${Distance}, TRUE]
 					Belts:Remove[1]
 					Belts:Collapse
 					return TRUE
 				}
 				else
 				{
-					Move:Bookmark[${Config.Dropoff}]
+					Move:Bookmark[${Config.Dropoff}, TRUE, 0, TRUE]
 					This:Clear
 					This:QueueState["Traveling"]
-					This:QueueState["OpenCargoHold"]
 					This:QueueState["CheckCargoHold"]
 					return TRUE
 				}
 			}
 		}
-		else
+		elseif !${Config.WarpToAnom} && !${Config.Tether}
 		{
 			UI:Update["Ratter", "Removing ${Bookmarks.Get[1].Label}", "g"]
 			Bookmarks.Get[1]:Remove
 			Bookmarks:Clear
 			return FALSE
 		}
-	
-		if 	${Entity[GroupID==GROUP_WRECK && HaveLootRights](exists)} &&\
-			${Config.Salvage} &&\
-			!${Entity[CategoryID == CATEGORYID_SHIP && IsPC && !IsFleetMember && OwnerID != ${Me.CharID}]}
+
+		if ${Config.WarpToAnom}
 		{
-			UI:Update["Ratter", "Bookmarking ${Entity[GroupID==GROUP_WRECK && HaveLootRights].Name}", "g"]
-			Entity[GroupID==GROUP_WRECK && HaveLootRights]:CreateBookmark["${Config.SalvagePrefix} ${EVETime.Time.Left[-3].Replace[":",""]}","","Corporation Locations"]
+			if !${Client.InSpace}
+			{
+				Move:Undock
+
+				This:InsertState["MoveToNewRatLocation"]
+				This:InsertState["Reload"]
+				This:InsertState["Idle", 20000]
+				return TRUE
+			}
+
+			dotnet WarpToAnom WarpToAnom ${Distance}
+			This:InsertState["Idle", 60000]
+			return TRUE
 		}
-		echo Move:Bookmark[${Bookmarks.Get[1].Label}, TRUE, ${Distance}]
-		Move:Bookmark[${Bookmarks.Get[1].Label}, TRUE, ${Distance}]
+		elseif !${Config.Tether}
+		{
+			Move:Bookmark[${Bookmarks.Get[1].Label}, TRUE, ${Distance}, TRUE]
+		}
 		return TRUE
 
 	}
-	
+
+
 	member:bool VerifyRatLocation()
 	{
+		DroneControl:Recall
+		if ${Busy.IsBusy}
+		{
+			return FALSE
+		}
+		if ${Config.Tether}
+		{
+			if !${Entity[Name =- "${Config.TetherPilot}"](exists)}
+			{
+				UI:Update["Ratter", "Separated from Tether Pilot", "g"]
+				This:InsertState["VerifyRatLocation"]
+				This:InsertState["Traveling"]
+				This:InsertState["MoveToNewRatLocation"]
+				return TRUE
+			}
+		}
 		if ${Entity[CategoryID == CATEGORYID_SHIP && IsPC && !IsFleetMember && OwnerID != ${Me.CharID}]}
 		{
 			UI:Update["Ratter", "This location is occupied, going to next", "g"]
@@ -259,54 +464,310 @@ objectdef obj_Ratter inherits obj_State
 		}
 		return TRUE
 	}
-	
+
 
 	member:bool InitialUpdate()
 	{
+		UI:Update["Ratter", "Waiting for 60 seconds for rats", "g"]
+		FinishedDelay:Set[${Math.Calc[${LavishScript.RunningTime} + (60000)]}]
+		FirstWreck:Set[0]
 		Rats:RequestUpdate
 		return TRUE
 	}
-	
+
 	member:bool Updated()
 	{
-		return ${Rats.Updated}
-	}
-	member:bool Rat()
-	{
-		if !${Busy.IsBusy} && !${Rats.TargetList.Used}
+		if ${Me.ToEntity.Mode} == 3
 		{
-			This:QueueState["OpenCargoHold"]
+			This:InsertState["Updated"]
+			This:InsertState["InitialUpdate"]
+			This:InsertState["VerifyRatLocation"]
+			This:InsertState["Traveling"]
+			This:InsertState["MoveToNewRatLocation"]
+			This:InsertState["Traveling"]
+			return TRUE
+		}
+		Rats:RequestUpdate
+		if ${Rats.TargetList.Used} > 0
+		{
+			UI:Update["Ratter", "Found rats on grid", "g"]
+			FinishedDelay:Set[${Math.Calc[${LavishScript.RunningTime} + (10000)]}]
+			return TRUE
+		}
+		if ${Config.Tether} && !${Entity[Name =- "${Config.TetherPilot}"](exists)}
+		{
+			UI:Update["Ratter", "Tether pilot not on grid", "g"]
+			FinishedDelay:Set[${Math.Calc[${LavishScript.RunningTime} + (10000)]}]
+			return TRUE
+		}
+		if ${LavishScript.RunningTime} > ${FinishedDelay}
+		{
+			This:InsertState["Updated"]
+			This:InsertState["InitialUpdate"]
+			This:InsertState["VerifyRatLocation"]
+			This:InsertState["Traveling"]
+			This:InsertState["MoveToNewRatLocation"]
+			This:InsertState["Traveling"]
+			return TRUE
+		}
+	}
+
+	member:bool DropCloak(bool arg)
+	{
+		AutoModule.DropCloak:Set[${arg}]
+		return TRUE
+	}
+
+	member:bool Rat(bool RefreshBookmarks=FALSE)
+	{
+		if !${Client.InSpace}
+		{
+			if ${Config.AssistOnly}
+			{
+				This:QueueState["DropCloak", 50, TRUE]
+				This:QueueState["Rat"]
+			}
+			else
+			{
+				This:QueueState["CheckCargoHold"]
+			}
+			return TRUE
+		}
+
+		if !${Client.Inventory}
+		{
+			return FALSE
+		}
+
+		if ${Me.ToEntity.Mode} == 3
+		{
+			FirstWreck:Set[0]
+			return FALSE
+		}
+		if ${RefreshBookmarks}
+		{
+			EVE:RefreshBookmarks
+			This:InsertState["Rat"]
+			return TRUE
+		}
+		if (!${Busy.IsBusy} && !${Rats.TargetList.Used} && ${LavishScript.RunningTime} > ${FinishedDelay}) || (${Config.Tether} && !${Entity[Name =- "${Config.TetherPilot}"](exists)})
+		{
+			variable bool Bookmarked=FALSE
+			variable index:bookmark Bookmarks
+			variable iterator BookmarkIterator
+			EVE:GetBookmarks[Bookmarks]
+			Bookmarks:GetIterator[BookmarkIterator]
+			if ${BookmarkIterator:First(exists)}
+				do
+				{
+					if 	${BookmarkIterator.Value.JumpsTo} == 0 &&\
+						${BookmarkIterator.Value.Distance} < WARP_RANGE &&\
+						${BookmarkIterator.Value.Label.Find[${Config.SalvagePrefix}]}
+					{
+						Bookmarked:Set[TRUE]
+					}
+				}
+				while ${BookmarkIterator:Next(exists)}
+
+			if 	${Entity[GroupID==GROUP_WRECK && HaveLootRights](exists)} &&\
+				${Config.Salvage} &&\
+				!${Entity[CategoryID == CATEGORYID_SHIP && IsPC && !IsFleetMember && OwnerID != ${Me.CharID}]} &&\
+				!${Bookmarked} &&\
+				!${Entity[CategoryID = CATEGORYID_ENTITY && IsNPC && !IsMoribund && !(GroupID = GROUP_CONCORDDRONE || GroupID = GROUP_CONVOYDRONE || GroupID = GROUP_CONVOY || GroupID = GROUP_LARGECOLLIDABLEOBJECT || GroupID = GROUP_LARGECOLLIDABLESHIP || GroupID = GROUP_SPAWNCONTAINER || GroupID = CATEGORYID_ORE || GroupID = GROUP_LARGECOLLIDABLESTRUCTURE)]}
+			{
+				UI:Update["Ratter", "Bookmarking ${Entity[GroupID==GROUP_WRECK && HaveLootRights].Name}", "g"]
+				Entity[GroupID==GROUP_WRECK && HaveLootRights]:CreateBookmark["${Config.SalvagePrefix} ${EVETime.Time.Left[-3].Replace[":",""]}","","Corporation Locations"]
+				This:InsertState["Rat", 1500, TRUE]
+				return TRUE
+			}
+			Rats.AutoLock:Set[FALSE]
+			DroneControl.DroneTargets.AutoLock:Set[FALSE]
+
+
+			if ${Config.AssistOnly}
+			{
+				FirstWreck:Set[0]
+			}
+			else
+			{
+				This:QueueState["CheckCargoHold"]
+				return TRUE
+			}
+		}
+
+		variable index:item Items
+		variable iterator ItemIterator
+		variable int AmmoCount=0
+
+		MyShip:GetCargo[Items]
+		Items:GetIterator[ItemIterator]
+
+		if ${Config.Ammo.Length} > 0
+		{
+			if ${ItemIterator:First(exists)}
+				do
+				{
+					if ${ItemIterator.Value.Name.Equal[${Config.Ammo}]}
+					{
+						AmmoCount:Inc[${ItemIterator.Value.Quantity}]
+					}
+				}
+				while ${ItemIterator:Next(exists)}
+		}
+
+		if 	${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].UsedCapacity} / ${EVEWindow[Inventory].ChildWindow[${MyShip.ID}, ShipCargo].Capacity} > ${Config.Threshold} * .01 ||\
+			${AmmoCount} < ${Config.AmmoSupply}
+		{
+			Move:SaveSpot
 			This:QueueState["CheckCargoHold"]
 			return TRUE
 		}
-		
-		Rats.MaxLockCount:Set[4]
+
+
+		Rats.MinLockCount:Set[${Config.Locks}]
 		Rats.AutoLock:Set[TRUE]
+		DroneControl.DroneTargets.AutoLock:Set[TRUE]
 		Rats:RequestUpdate
-		
-		if ${Rats.TargetList.Used}
+
+		variable string ModuleToUse
+
+		if ${Config.DroneControl}
 		{
-			if 	${Config.SpeedTank} &&\
-				${Me.ToEntity.Mode} != 4
+			ModuleToUse:Set[DroneControl.DroneTargets]
+		}
+		else
+		{
+			ModuleToUse:Set[Rats]
+		}
+
+
+		if ${FirstWreck} == 0
+		{
+			if ${Entity[GroupID==GROUP_WRECK && HaveLootRights](exists)}
 			{
-				Rats.TargetList.Get[1]:Orbit[${Math.Calc[${Config.SpeedTankDistance}*1000+1000].Int}]
+				FirstWreck:Set[${Entity[GroupID==GROUP_WRECK && HaveLootRights].ID}]
+				if ${Config.Salvage}
+				{
+					Entity[${FirstWreck}]:SetName[This salvage site belongs to ${Me.Name}]
+				}
 			}
 		}
-		
-		if ${Rats.LockedTargetList.Used}
+
+		if ${Config.Squat}
 		{
+			if ${FirstWreck}
+			{
+				if ${Config.SpeedTank}
+				{
+					if ${Me.ToEntity.Mode} != 4
+					{
+						UI:Update["Ratter", "SpeedTank: Orbiting \ao${Entity[${FirstWreck}].Name}", "g"]
+						Entity[${FirstWreck}]:Orbit[${Math.Calc[${Config.SpeedTankDistance}*1000+1000].Int}]
+					}
+				}
+				else
+				{
+					Move:Approach[${FirstWreck}, 2000]
+				}
+			}
+		}
+		elseif ${Config.SpeedTank}
+		{
+			if ${Entity[${CurrentTarget}](exists)}
+			{
+				if ${Config.SpeedTank}
+				{
+					if ${Config.SpeedTankKeepRange}
+					{
+						if ${Me.ToEntity.Mode} != 1
+						{
+							UI:Update["Ratter", "SpeedTank: Keeping \ao${Entity[${CurrentTarget}].Name} at range", "g"]
+							Orbiting:Set[0]
+							${ModuleToUse}.LockedAndLockingTargetList.Get[1]:KeepAtRange[${Math.Calc[${Config.SpeedTankDistance}*1000+1000].Int}]
+						}
+					}
+					else
+					{
+						variable int64 CollisionDistance = 5000
+						if ${Config.SpeedTankDistance} < 5000
+						{
+							CollisionDistance:Set[${Config.SpeedTankDistance}]
+						}
+
+						if ${Me.ToEntity.Mode} != 4
+						{
+							UI:Update["Ratter", "SpeedTank: Orbiting \ao${Entity[${CurrentTarget}].Name}", "g"]
+							Orbiting:Set[0]
+							${ModuleToUse}.LockedAndLockingTargetList.Get[1]:Orbit[${Math.Calc[${Config.SpeedTankDistance}*1000+1000].Int}]
+						}
+						elseif ${Entity[(GroupID==GROUP_LARGECOLLIDABLEOBJECT || GroupID==GROUP_LARGECOLLIDABLESHIP || GroupID==GROUP_LARGECOLLIDABLESTRUCTURE) && Distance < ${CollisionDistance}]} && \
+								${Orbiting} != ${Entity[(GroupID==GROUP_LARGECOLLIDABLEOBJECT || GroupID==GROUP_LARGECOLLIDABLESHIP || GroupID==GROUP_LARGECOLLIDABLESTRUCTURE) && Distance < ${CollisionDistance}]}
+						{
+							UI:Update["Ratter", "SpeedTank: Orbiting \ao${Entity[(GroupID==GROUP_LARGECOLLIDABLEOBJECT || GroupID==GROUP_LARGECOLLIDABLESHIP || GroupID==GROUP_LARGECOLLIDABLESTRUCTURE) && Distance < ${CollisionDistance}].${CollisionDistance}}", "g"]
+							Orbiting:Set[${Entity[(GroupID==GROUP_LARGECOLLIDABLEOBJECT || GroupID==GROUP_LARGECOLLIDABLESHIP || GroupID==GROUP_LARGECOLLIDABLESTRUCTURE) && Distance < ${CollisionDistance}]}]
+							Entity[(GroupID==GROUP_LARGECOLLIDABLEOBJECT || GroupID==GROUP_LARGECOLLIDABLESHIP || GroupID==GROUP_LARGECOLLIDABLESTRUCTURE) && Distance < ${CollisionDistance}]:Orbit[${CollisionDistance}+5000]
+						}
+						elseif !${Entity[(GroupID==GROUP_LARGECOLLIDABLEOBJECT || GroupID==GROUP_LARGECOLLIDABLESHIP || GroupID==GROUP_LARGECOLLIDABLESTRUCTURE) && Distance < ${CollisionDistance} + 3000]} &&\
+								${Me.ToEntity.Approaching.ID} != ${CurrentTarget}
+						{
+							UI:Update["Ratter", "SpeedTank: Orbiting \ao${Entity[${CurrentTarget}].Name}", "g"]
+							Orbiting:Set[0]
+							Entity[${CurrentTarget}]:Orbit[${Math.Calc[${Config.SpeedTankDistance}*1000+1000].Int}]
+						}
+					}
+				}
+			}
+		}
+		elseif ${Config.Tether} && ${Config.KeepRange}
+		{
+			if ${Entity[Name =- "${Config.TetherPilot}"](exists)}
+			{
+				if ${Me.ToEntity.Mode} != 1
+				{
+					Entity[Name =- "${Config.TetherPilot}"]:KeepAtRange
+				}
+			}
+		}
+
+		if !${Entity[${CurrentTarget}](exists)} || (!${Entity[${CurrentTarget}].IsLockedTarget} && !${Entity[${CurrentTarget}].BeingTargeted}) || ${Entity[${CurrentTarget}].Distance} > 150000
+		{
+			CurrentTarget:Set[-1]
+		}
+		else
+		{
+			FinishedDelay:Set[${Math.Calc[${LavishScript.RunningTime} + (10000)]}]
 			if 	${Ship.ModuleList_Weapon.ActiveCount} < ${Ship.ModuleList_Weapon.Count}
 			{
-				Ship.ModuleList_Weapon:ActivateCount[${Ship.ModuleList_Weapon.InactiveCount}, ${Rats.LockedTargetList.Get[1].ID}]
+				Ship.ModuleList_Weapon:ActivateCount[${Ship.ModuleList_Weapon.InactiveCount}, ${CurrentTarget}]
+				return FALSE
+			}
+			if 	${Ship.ModuleList_TargetPainter.ActiveCount} < ${Ship.ModuleList_TargetPainter.Count}
+			{
+				Ship.ModuleList_TargetPainter:ActivateCount[${Ship.ModuleList_TargetPainter.InactiveCount}, ${CurrentTarget}]
+				return FALSE
+			}
+			if 	${Ship.ModuleList_StasisWeb.ActiveCount} < ${Ship.ModuleList_StasisWeb.Count} &&\
+				${Entity[${CurrentTarget}].Distance} < ${Ship.ModuleList_StasisWeb.Range}
+			{
+				Ship.ModuleList_StasisWeb:ActivateCount[${Ship.ModuleList_StasisWeb.InactiveCount}, ${CurrentTarget}]
 				return FALSE
 			}
 		}
-		
+
+		if ${${ModuleToUse}.LockedAndLockingTargetList.Used} && ${CurrentTarget.Equal[-1]}
+		{
+			if ${${ModuleToUse}.LockedAndLockingTargetList.Get[1](exists)}
+			{
+				CurrentTarget:Set[${${ModuleToUse}.LockedAndLockingTargetList.Get[1].ID}]
+				UI:Update["Ratter", "Primary target: \ar${${ModuleToUse}.LockedAndLockingTargetList.Get[1].Name}", "g"]
+			}
+		}
+
 		return FALSE
 	}
-	
 
-}	
+
+}
 
 
 
@@ -322,7 +783,7 @@ objectdef obj_RatterUI inherits obj_State
 		This[parent]:Initialize
 		This.NonGameTiedPulse:Set[TRUE]
 	}
-	
+
 	method Start()
 	{
 		if ${This.IsIdle}
@@ -331,7 +792,7 @@ objectdef obj_RatterUI inherits obj_State
 			This:QueueState["UpdateBookmarkLists", 5]
 		}
 	}
-	
+
 	method Stop()
 	{
 		This:Clear
@@ -339,27 +800,25 @@ objectdef obj_RatterUI inherits obj_State
 
 	member:bool OpenCargoHold()
 	{
-		if !${EVEWindow[ByName, "Inventory"](exists)}
-		{
-			UI:Update["Ratter", "Opening inventory", "g"]
-			MyShip:OpenCargo[]
-			return FALSE
-		}
-		return TRUE
+		return ${Client.Inventory}
 	}
-	
+
 	member:bool UpdateBookmarkLists()
 	{
 		variable index:bookmark Bookmarks
 		variable iterator BookmarkIterator
+		variable index:item Items
+		variable iterator ItemIterator
 
 		EVE:GetBookmarks[Bookmarks]
 		Bookmarks:GetIterator[BookmarkIterator]
-		
+		MyShip:GetCargo[Items]
+		Items:GetIterator[ItemIterator]
+
 		UIElement[RattingSystemList@RatterFrame@Frame@ComBot_Ratter]:ClearItems
 		if ${BookmarkIterator:First(exists)}
 			do
-			{	
+			{
 				if ${UIElement[RattingSystem@RatterFrame@Frame@ComBot_Ratter].Text.Length}
 				{
 					if ${BookmarkIterator.Value.Label.Left[${Ratter.Config.RattingSystem.Length}].Equal[${Ratter.Config.RattingSystem}]}
@@ -375,7 +834,7 @@ objectdef obj_RatterUI inherits obj_State
 		UIElement[DropoffList@DropoffFrame@Frame@ComBot_Ratter]:ClearItems
 		if ${BookmarkIterator:First(exists)}
 			do
-			{	
+			{
 				if ${UIElement[Dropoff@DropoffFrame@Frame@ComBot_Ratter].Text.Length}
 				{
 					if ${BookmarkIterator.Value.Label.Left[${Ratter.Config.Dropoff.Length}].Equal[${Ratter.Config.Dropoff}]}
@@ -387,7 +846,22 @@ objectdef obj_RatterUI inherits obj_State
 				}
 			}
 			while ${BookmarkIterator:Next(exists)}
-			
+
+		UIElement[AmmoList@AmmoFrame@Frame@ComBot_Ratter]:ClearItems
+		if ${ItemIterator:First(exists)}
+			do
+			{
+				if ${UIElement[Ammo@AmmoFrame@Frame@ComBot_Ratter].Text.Length}
+				{
+					if ${ItemIterator.Value.Name.Left[${Ratter.Config.Ammo.Length}].Equal[${Ratter.Config.Ammo}]}
+						UIElement[AmmoList@AmmoFrame@Frame@ComBot_Ratter]:AddItem[${ItemIterator.Value.Name.Escape}]
+				}
+				else
+				{
+					UIElement[AmmoList@AmmoFrame@Frame@ComBot_Ratter]:AddItem[${ItemIterator.Value.Name.Escape}]
+				}
+			}
+			while ${ItemIterator:Next(exists)}
 		return FALSE
 	}
 

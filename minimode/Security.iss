@@ -27,10 +27,9 @@ objectdef obj_Configuration_Security
 	{
 		if !${BaseConfig.BaseRef.FindSet[${This.SetName}](exists)}
 		{
-			UI:Update["obj_Configuration", " ${This.SetName} settings missing - initializing", "o"]
+			UI:Update["Configuration", " ${This.SetName} settings missing - initializing", "o"]
 			This:Set_Default_Values[]
 		}
-		UI:Update["obj_Configuration", " ${This.SetName}: Initialized", "-g"]
 	}
 
 	member:settingsetref CommonRef()
@@ -89,6 +88,8 @@ objectdef obj_Security inherits obj_State
 	{
 		if ${This.IsIdle}
 		{
+			This:QueueState["WaitForLogin"]
+			This:QueueState["Idle", 5000]
 			This:QueueState["CheckSafe", 500]
 		}
 	}
@@ -97,7 +98,16 @@ objectdef obj_Security inherits obj_State
 	{
 		This:Clear
 	}
-
+	
+	member:bool WaitForLogin()
+	{
+		if ${Me(exists)} && ${MyShip(exists)} && (${Me.InSpace} || ${Me.InStation})
+		{
+			EVE:RefreshStandings
+			return TRUE
+		}
+		return FALSE
+	}
 	
 	member:bool CheckSafe(bool ClearFlee=FALSE)
 	{
@@ -118,21 +128,21 @@ objectdef obj_Security inherits obj_State
 			if ${Config.CapFlee} && ${MyShip.CapacitorPct} <= ${Config.CapFleeThreshold}
 			{
 				This:QueueState["PrepFlee", 500, "Cap at or below threshold (${Config.CapFleeThreshold}%)"]
-				This:QueueState["Flee", 500]
+				This:QueueState["Flee", 500, FALSE]
 				Profiling:EndTrack
 				return TRUE
 			}
 			if ${Config.ShieldFlee} && ${MyShip.ShieldPct} <= ${Config.ShieldFleeThreshold}
 			{
 				This:QueueState["PrepFlee", 500, "Shields at or below threshold (${Config.ShieldFleeThreshold}%)"]
-				This:QueueState["Flee", 500]
+				This:QueueState["Flee", 500, FALSE]
 				Profiling:EndTrack
 				return TRUE
 			}
 			if ${Config.ArmorFlee} && ${MyShip.ArmorPct} <= ${Config.ArmorFleeThreshold}
 			{
 				This:QueueState["PrepFlee", 500, "Armor at or below threshold (${Config.ArmorFleeThreshold}%)"]
-				This:QueueState["Flee", 500]
+				This:QueueState["Flee", 500, FALSE]
 				Profiling:EndTrack
 				return TRUE
 			}
@@ -256,7 +266,10 @@ objectdef obj_Security inherits obj_State
 		
 		if ${ClearFlee}
 		{
-			ComBot:Resume
+			if !${ComBot.Paused}
+			{
+				ComBot:Resume
+			}
 			This:QueueState["CheckSafe", 500]
 			Profiling:EndTrack
 			return TRUE
@@ -267,7 +280,12 @@ objectdef obj_Security inherits obj_State
 	
 	member:bool PrepFlee(string Message)
 	{
+		if ${Client.InSpace} && !${Move.SavedSpotExists}
+		{
+			Move:SaveSpot
+		}
 		variable iterator Behaviors
+		uplink speak "Flee triggered!  ${Message}"
 		UI:Update["Security", "Flee triggered!", "r"]
 		UI:Update["Security", "${Message}", "r"]
 		Dynamic.Behaviors:GetIterator[Behaviors]
@@ -285,18 +303,21 @@ objectdef obj_Security inherits obj_State
 		return TRUE
 	}
 	
-	member:bool Flee()
+	member:bool Flee(bool PerformWait=TRUE)
 	{
 		Profiling:StartTrack["Security_Flee"]
 
-		Move:Bookmark[${Config.FleeTo}]
-		
 		if !${Me.InStation}
 		{
-			Profiling:EndTrack
-			return FALSE
+			Move:Bookmark[${Config.FleeTo}]
+			This:QueueState["Traveling"]
 		}
-
+		
+		if !${PerformWait}
+		{
+			This:QueueState["StationClear"]
+		}
+		
 		if ${Config.FleeWaitTime_Enabled}
 		{
 			This:QueueState["Log", 100, "Waiting for ${Config.FleeWaitTime} minutes after flee"]
@@ -306,6 +327,28 @@ objectdef obj_Security inherits obj_State
 		This:QueueState["CheckSafe", 500, TRUE]
 		Profiling:EndTrack
 		return TRUE
+	}
+	
+	member:bool StationClear()
+	{
+		if ${Me.InStation}
+		{
+			This:Clear
+			This:QueueState["CheckSafe", 500, TRUE]
+			return TRUE
+		}
+		elseif ${MyShip.CapacitorPct} <= ${Config.CapFleeThreshold}
+		{
+			AutoModule.SafetyOveride:Set[TRUE]
+		}
+		else
+		{
+			AutoModule.SafetyOveride:Set[FALSE]
+			This:Clear
+			This:QueueState["CheckSafe", 500, TRUE]
+			return TRUE
+		}
+		return FALSE
 	}
 	
 	member:bool Log(string text)

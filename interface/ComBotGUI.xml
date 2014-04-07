@@ -218,10 +218,13 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 							<Height>6%</Height>
 							<OnSelect>
 								variable int counter
-								Script[ComBot].VariableScope.Config.Common:SetComBot_Mode[${This.SelectedItem.Value}]
-								for ( counter:Set[1] ; ${counter} &lt;= ${This.Items} ; counter:Inc )
+								if !${This.SelectedItem.Value.Equal[${Script[ComBot].VariableScope.Config.Common.ComBot_Mode}]}
 								{
-									Script[ComBot].VariableScope.${This.OrderedItem[${counter}].Value}:Stop
+									Script[ComBot].VariableScope.Config.Common:SetComBot_Mode[${This.SelectedItem.Value}]
+									for ( counter:Set[1] ; ${counter} &lt;= ${This.Items} ; counter:Inc )
+									{
+										Script[ComBot].VariableScope.${This.OrderedItem[${counter}].Value}:Stop
+									}
 								}
 								if ${Script[ComBot].VariableScope.UI.Reloaded}
 								{
@@ -292,6 +295,24 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 							</OnLoad>
 							<OnLeftClick>
 								Script[ComBot].VariableScope.Config.Common:SetDisable3D[${This.Checked}]
+								This:SetZOrder[movetop]
+							</OnLeftClick>
+						</Checkbox>
+						<Checkbox name='CloseChatInvites'>
+							<X>51%</X>
+							<Y>50%</Y>
+							<Width>48%</Width> 
+							<Height>6%</Height> 
+							<Text>Auto-close Chat Invites</Text>
+							<OnLoad>
+								if ${Script[ComBot].VariableScope.Config.Common.CloseChatInvites}
+								{
+									This:SetChecked
+								}
+								This:SetZOrder[movetop]
+							</OnLoad>
+							<OnLeftClick>
+								Script[ComBot].VariableScope.Config.Common:SetCloseChatInvites[${This.Checked}]
 								This:SetZOrder[movetop]
 							</OnLeftClick>
 						</Checkbox>
@@ -473,6 +494,21 @@ along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
 								Script[ComBot].VariableScope.Fleets:DeleteFleet[${UIElement[FleetSelection@Settings@ComBotTab@ComBot].SelectedItem.Text}]
 							</OnLeftClick>
 						</button>													
+						<button	Name='GoHome'>
+							<Font template='Button.Font' />
+							<BackgroundColor>FF000000</BackgroundColor>
+							<X>1%</X>
+							<Y>32%</Y>
+							<Width>32%</Width>
+							<Height>8%</Height>
+							<Text>Go Home</Text>
+							<OnLeftClick>
+								Script[ComBot].VariableScope.Automate:GotoLogoutNow
+							</OnLeftClick>
+							<OnRightClick>
+								relay all Script[ComBot].VariableScope.Automate:GotoLogoutNow
+							</OnRightClick>
+						</button>
 					</Tab>
 
 					<Tab Name='Debug'>

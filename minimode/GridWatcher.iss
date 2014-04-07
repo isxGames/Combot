@@ -27,10 +27,9 @@ objectdef obj_Configuration_GridWatcher
 	{
 		if !${BaseConfig.BaseRef.FindSet[${This.SetName}](exists)}
 		{
-			UI:Update["obj_Configuration", " ${This.SetName} settings missing - initializing", "o"]
+			UI:Update["Configuration", " ${This.SetName} settings missing - initializing", "o"]
 			This:Set_Default_Values[]
 		}
-		UI:Update["obj_Configuration", " ${This.SetName}: Initialized", "-g"]
 	}
 
 	member:settingsetref CommonRef()
@@ -50,7 +49,7 @@ objectdef obj_Configuration_GridWatcher
 objectdef obj_GridWatcher inherits obj_State
 {
 	variable obj_Configuration_GridWatcher Config
-	variable collection:int LastDetection
+	variable set AlreadyDetected
 	
 	method Initialize()
 	{
@@ -84,12 +83,13 @@ objectdef obj_GridWatcher inherits obj_State
 		{
 			do
 			{
-				if ${LastDetection.Element[${EntityNames.Value.Name}]} < ${LavishScript.RunningTime}
+				if ${Entity[Name =- "${EntityNames.Value.Name}"](exists)}
 				{
-					if ${Entity[Name =- "${EntityNames.Value.Name}"](exists)}
+					if !${AlreadyDetected.Contains[${Entity[Name =- "${EntityNames.Value.Name}"].ID}]}
 					{
 						uplink speak "${Entity[Name =- "${EntityNames.Value.Name}"].Name} Found"
-						LastDetection:Set[${EntityNames.Value.Name}, ${Math.Calc[${LavishScript.RunningTime}+30000]}]
+						AlreadyDetected:Add[${Entity[Name =- "${EntityNames.Value.Name}"].ID}]
+						EVE:CreateBookmark["${Entity[Name =- "${EntityNames.Value.Name}"].Name} ${EVETime.Time.Left[-3].Replace[":",""]}"]
 					}
 				}
 			}
