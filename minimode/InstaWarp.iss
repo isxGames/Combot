@@ -28,7 +28,7 @@ objectdef obj_InstaWarp inherits obj_State
 	{
 		This[parent]:Initialize
 		This.NonGameTiedPulse:Set[TRUE]
-		Dynamic:AddMiniMode["InstaWarp", "InstaWarp", FALSE]
+		DynamicAddMiniMode("InstaWarp", "InstaWarp")
 	}
 	
 	method Start()
@@ -56,7 +56,7 @@ objectdef obj_InstaWarp inherits obj_State
 		
 		if ${Me.ToEntity.Mode} == 3 && !${InstaWarp_Cooldown}
 		{
-			Ship.ModuleList_AB_MWD:Activate
+			Ship.ModuleList_AB_MWD:Activate[-1, FALSE]
 			InstaWarp_Cooldown:Set[TRUE]
 			return FALSE
 		}
@@ -67,7 +67,4 @@ objectdef obj_InstaWarp inherits obj_State
 		}
 	}
 
-	method Flee()
-	{
-	}
 }

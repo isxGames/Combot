@@ -1,0 +1,655 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<ISUI>
+
+<!--
+
+ComBot  Copyright © 2012  Tehtsuo and Vendan
+
+This file is part of ComBot.
+
+ComBot is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+ComBot is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with ComBot.  If not, see <http://www.gnu.org/licenses/>.
+
+-->
+
+	<template name='Information.Font'>	
+		<Name>Terminal</Name>
+		<Size>8</Size>
+		<Color>FFFFFFFF</Color>
+	</template>	
+	<template name='Text.Font'>	
+		<Name>Verdana</Name>
+		<Size>12</Size>
+		<Color>FFFFFFFF</Color>
+		<Bold />
+	</template>	
+	<template name='Checkbox.Font'>	
+		<Name>Verdana</Name>
+		<Size>12</Size>
+		<Color>FFFFFFFF</Color>
+		<Bold />
+	</template>	
+	<template name='Button.Font'>	
+		<Name>Verdana</Name>
+		<Size>12</Size>
+		<Color>FF000000</Color>
+		<Bold />
+	</template>	
+
+	<window name='ComBot_DedicatedSalvager'>
+		<Visible>1</Visible>
+		<BackGroundColor></BackGroundColor>
+		<Border>0</Border>
+		<X>200</X>
+		<Y>300</Y>
+		<Width>800</Width>
+		<Height>600</Height>
+		<TitleBar>
+			<Width>100%</Width>
+			<Height>20</Height>
+			<Border>0</Border>
+			<BackgroundColor>FF000000</BackgroundColor>
+			<Children>
+				<Text name='ComBot_DedicatedSalvager_TitleBar_Title'>
+					<X>0</X>
+					<Y>3</Y>
+					<Width>100%</Width>
+					<Height>20</Height>
+					<Alignment>Center</Alignment>
+					<Text>Dedicated Salvager Configuration</Text>
+				</Text>
+				<button	Name='Help'>
+					<Font template='Button.Font' />
+					<BackgroundColor>FF000000</BackgroundColor>
+					<X>r80</X>
+					<Y>0</Y>
+					<Width>40</Width>
+					<Height>20</Height>
+					<Text>Help</Text>
+					<OnLeftClick>
+						timedcommand 0 "OSExecute http://combot.vendaria.net/index.php?title=Salvager"
+					</OnLeftClick>
+				</button>
+				<button	Name='Close'>
+					<X>r40</X>
+					<Y>0</Y>
+					<Width>40</Width>
+					<Height>20</Height>
+					<Text>Close</Text>
+					<OnLeftClick>
+						if !${EVE.Bookmark[${Script[ComBot].VariableScope.Salvager.Config.Dropoff}](exists)}
+						{
+							Script[ComBot].VariableScope.UI:Update["obj_Salvage", "Unable to verify Dropoff bookmark", "r"]
+						}
+						if ${Script[ComBot].VariableScope.Salvager.Config.BeltPatrolEnabled}
+						{
+							if !${EVE.Bookmark[${Script[ComBot].VariableScope.Salvager.Config.BeltPatrol}](exists)}
+							{
+								Script[ComBot].VariableScope.UI:Update["obj_Salvage", "Unable to verify Belt Patrol bookmark", "r"]
+							}
+						}
+
+						Script[ComBot].VariableScope.Salvager.LocalUI:Stop
+						ui -unload "&filepath;/Salvager"
+					</OnLeftClick>
+				</button>
+			</Children>
+		</TitleBar>
+		<Children name="ComBot_DedicatedSalvager_Children">
+			<Frame name="ComBot_DedicatedSalvager_Frame">
+				<X>0</X>
+				<Y>5</Y>
+				<Width>100%</Width>
+				<Height>100%</Height>
+				<BackgroundColor>FF000000</BackgroundColor>
+				<Border>1</Border>
+				<BorderColor>FFFFFFFF</BorderColor>
+				<Children name="ComBot_DedicatedSalvager_Frame_Children">
+				
+					<Text name='SalvageFrameTitle'> 
+						<X>1%</X> 
+						<Y>2%</Y> 
+						<Width>32%</Width> 
+						<Height>4%</Height> 
+						<Text>Salvage Configuration</Text>
+						<OnLoad>
+							This.Font:SetColor[FFFFFF00]
+						</OnLoad>
+					</Text>
+					<Frame name="SalvageFrame">
+						<X>0%</X>
+						<Y>4%</Y>
+						<Width>100%</Width>
+						<Height>30%</Height>
+						<BackgroundColor>FF000000</BackgroundColor>
+						<Border>1</Border>
+						<BorderColor>FFFFFFFF</BorderColor>
+						<Children>
+							<Text name='PrefixTitle'> 
+								<X>1%</X> 
+								<Y>3%</Y> 
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Alignment>Center</Alignment>
+								<Text>Salvage Prefix</Text>
+							</Text>						 
+							<Textentry name='Prefix'> 
+								<X>1%</X> 
+								<Y>10%</Y> 
+								<Width>32%</Width> 
+								<Height>15%</Height> 
+								<OnLoad>
+									This:SetText[${Script[ComBot].VariableScope.Salvager.Config.Prefix}]
+								</OnLoad>
+								<OnChange>
+									Script[ComBot].VariableScope.Salvager.Config:SetPrefix[${This.Text}]
+								</OnChange>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["This field is to specify the prefix to use for your salvage bookmarks.  Any bookmark which starts with this prefix will be used as a salvage location."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</Textentry>			
+							<Checkbox name='AvoidShips'> 
+								<X>34%</X> 
+								<Y>60%</Y> 
+								<Width>32%</Width> 
+								<Height>9%</Height> 
+								<Text>Don't salvage when any non-fleet ships are on grid</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Salvager.Config.AvoidShips}
+									{
+										This:SetChecked
+									}
+									This:SetZOrder[movetop]
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Salvager.Config:SetAvoidShips[${This.Checked}]
+									This:SetZOrder[movetop]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["When this option is checked, ComBot will skip a belt if there are non-fleet ships present."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>
+							<Checkbox name='Relay'> 
+								<X>67%</X> 
+								<Y>10%</Y> 
+								<Width>32%</Width> 
+								<Height>9%</Height> 
+								<Text>Relay bookmark removals</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Salvager.Config.Relay}
+									{
+										This:SetChecked
+									}
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Salvager.Config:SetRelay[${This.Checked}]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["When this option is checked, ComBot will relay bookmark removals.  Use this when you are in a corporation which only allows you to remove your own bookmarks.  ComBot will give other sessions instructions to remove bookmarks when it is finished salvaging."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>
+							<Textentry Name="BeltPatrolBookmark">
+								<BackgroundColor>FF000000</BackgroundColor>
+								<Border>1</Border>
+								<BorderColor>FFFFFFFF</BorderColor>
+								<X>34%</X>
+								<Y>30%</Y>
+								<Width>32%</Width>
+								<Height>15%</Height>
+								<OnLoad>
+									This:SetText[${Script[ComBot].VariableScope.Salvager.Config.BeltPatrol}]
+								</OnLoad>
+								<OnChange>
+									if ${This.Text.Length}
+									{
+										Script[ComBot].VariableScope.Salvager.Config:SetBeltPatrol[${This.Text}]
+									}
+									else
+									{
+										Script[ComBot].VariableScope.Salvager.Config:SetBeltPatrol[\"\"]
+									}
+									UIElement[BeltPatrolBookmarkList@SalvageFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+									Script[ComBot].VariableScope.Salvager.LocalUI:Start
+								</OnChange>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["This field needs to contain the exact name of a bookmark in the system in which you would like to belt salvage when no salvage prefix bookmarks are available."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</Textentry>
+							<listbox Name="BeltPatrolBookmarkList">
+								<BackgroundColor>FF000000</BackgroundColor>
+								<Border>1</Border>
+								<BorderColor>FFFFFFFF</BorderColor>
+								<X>34%</X>
+								<Y>45%</Y>
+								<Width>32%</Width>
+								<Height>50%</Height>
+								<OnLoad>
+									This:Hide
+								</OnLoad>
+								<OnSelect>
+									UIElement[BeltPatrolBookmark@SalvageFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[${This.SelectedItem.Text}]
+									Script[ComBot].VariableScope.Salvager.Config:SetBeltPatrol[${This.SelectedItem.Text}]
+									Script[ComBot].VariableScope.Salvager.LocalUI:Stop
+									This:Hide
+								</OnSelect>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["This field needs to contain the exact name of a bookmark in the system in which you would like to belt salvage when no salvage prefix bookmarks are available."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</listbox>
+							<Checkbox name='BeltPatrol'> 
+								<X>34%</X> 
+								<Y>10%</Y> 
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Alignment>Center</Alignment>
+								<Text>Patrol asteroid belts by default</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Salvager.Config.BeltPatrolEnabled}
+									{
+										This:SetChecked
+									}
+									else
+									{
+										UIElement[BeltPatrolBookmark@SalvageFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+										UIElement[AvoidShips@SalvageFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+									}
+									This:SetZOrder[movetop]
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Salvager.Config:SetBeltPatrolEnabled[${This.Checked}]
+									if ${This.Checked}
+									{
+										UIElement[BeltPatrolBookmark@SalvageFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+										UIElement[AvoidShips@SalvageFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+									}
+									else
+									{
+										UIElement[BeltPatrolBookmark@SalvageFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+										UIElement[BeltPatrolBookmarkList@SalvageFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+										UIElement[AvoidShips@SalvageFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+									}
+									This:SetZOrder[movetop]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["Enable this option if you would like ComBot to cycle through belts salvaging when there are no salvage prefix bookmarks available."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</Checkbox>
+							
+							<Text name='SizeTitle'> 
+								<X>1%</X> 
+								<Y>27%</Y> 
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Alignment>Center</Alignment>
+								<Text>Salvage Size</Text>
+							</Text>						 
+							<Combobox name='Size'>
+								<X>1%</X> 
+								<Y>34%</Y> 
+								<Width>32%</Width> 
+								<Height>12%</Height>
+								<Items>
+									<Item>Small</Item>
+									<Item>Medium</Item>
+									<Item>Large</Item>
+								</Items>
+								<OnLoad>
+									This.ItemByText[${Script[ComBot].VariableScope.Salvager.Config.Size}]:Select
+								</OnLoad>
+								<OnSelect>
+									Script[ComBot].VariableScope.Salvager.Config:SetSize[${This.SelectedItem.Text}]
+									NoOp ${Script[ComBot].VariableScope.Salvage.InitialUpdate}
+								</OnSelect>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["This selection can be used to specify what wreck sizes to salvage.  Anything smaller than your selection will be ignored.  For example, choosing Small will salvage everything, but choosing Medium will only salvage Medium and Large wrecks."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</Combobox>
+							
+							<Checkbox name='FollowGates'> 
+								<X>1%</X> 
+								<Y>50%</Y> 
+								<Width>32%</Width> 
+								<Height>9%</Height> 
+								<Text>Follow Gates</Text>
+								<OnLoad>
+									if ${Script[ComBot].VariableScope.Salvager.Config.FollowGates}
+									{
+										This:SetChecked
+									}
+									This:SetZOrder[movetop]
+								</OnLoad>
+								<OnLeftClick>
+									Script[ComBot].VariableScope.Salvager.Config:SetFollowGates[${This.Checked}]
+									This:SetZOrder[movetop]
+								</OnLeftClick>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["When this option is checked, ComBot will follow gates to continue salvaging from the same player as long as there are more bookmarks available from that player.  If there are not, ComBot will assume the next pocket in a deadspace chain still contains NPCs and skip to a different bookmark creator."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</CheckBox>
+						</Children>
+					</Frame>
+				
+					<Text name='DropoffFrameTitle'> 
+						<X>1%</X> 
+						<Y>40%</Y> 
+						<Width>32%</Width> 
+						<Height>4%</Height> 
+						<Text>Pickup Configuration</Text>
+						<OnLoad>
+							This.Font:SetColor[FFFFFF00]
+						</OnLoad>
+					</Text>
+					<Frame name="DropoffFrame">
+						<X>0%</X>
+						<Y>42%</Y>
+						<Width>100%</Width>
+						<Height>30%</Height>
+						<BackgroundColor>FF000000</BackgroundColor>
+						<Border>1</Border>
+						<BorderColor>FFFFFFFF</BorderColor>
+						<Children>
+							<Text name='DropoffTitle'> 
+								<X>34%</X> 
+								<Y>3%</Y> 
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Alignment>Center</Alignment>
+								<Text>Dropoff Bookmark</Text>
+							</Text>						 
+							<Textentry Name="Dropoff">
+								<BackgroundColor>FF000000</BackgroundColor>
+								<Border>1</Border>
+								<BorderColor>FFFFFFFF</BorderColor>
+								<X>34%</X>
+								<Y>10%</Y>
+								<Width>32%</Width>
+								<Height>15%</Height>
+								<OnLoad>
+									This:SetText[${Script[ComBot].VariableScope.Salvager.Config.Dropoff}]
+								</OnLoad>
+								<OnChange>
+									if ${This.Text.Length}
+									{
+										Script[ComBot].VariableScope.Salvager.Config:SetDropoff[${This.Text}]
+									}
+									else
+									{
+										Script[ComBot].VariableScope.Salvager.Config:SetDropoff[\"\"]
+									}
+									UIElement[DropoffList@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+									Script[ComBot].VariableScope.Salvager.LocalUI:Start
+								</OnChange>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["This field needs to contain the exact bookmark for the station in which you would like to drop off salvage loot."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</Textentry>
+							<listbox Name="DropoffList">
+								<BackgroundColor>FF000000</BackgroundColor>
+								<Border>1</Border>
+								<BorderColor>FFFFFFFF</BorderColor>
+								<X>34%</X>
+								<Y>25%</Y>
+								<Width>32%</Width>
+								<Height>70%</Height>
+								<OnLoad>
+									This:SetZOrder[alwaysontop]
+									This:Hide
+								</OnLoad>
+								<OnSelect>
+									UIElement[Dropoff@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[${This.SelectedItem.Text}]
+									Script[ComBot].VariableScope.Salvager.Config:SetDropoff[${This.SelectedItem.Text}]
+									Script[ComBot].VariableScope.Salvager.LocalUI:Stop
+									This:Hide
+								</OnSelect>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["This field needs to contain the exact bookmark for the station in which you would like to drop off salvage loot."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</listbox>
+							<Text name='Dropoff_ContainerTitle'> 
+								<X>34%</X> 
+								<Y>73%</Y> 
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Alignment>Center</Alignment>
+								<Text>Container Name</Text>
+							</Text>
+							<TextEntry name='Dropoff_Container'> 
+								<X>34%</X> 
+								<Y>80%</Y> 
+								<Width>32%</Width> 
+								<Height>15%</Height> 
+								<OnLoad>
+									This:SetText[${Script[ComBot].VariableScope.Salvager.Config.DropoffContainer}]
+								</OnLoad>
+								<OnChange>
+									Script[ComBot].VariableScope.Salvager.Config:SetDropoffContainer[${This.Text}]
+								</OnChange>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["This field is used to supply ComBot with an identifier for your dropoff location.  If you are delivering to an Fleet Hangar, this needs to contain the name of the pilot flying your Fleet Hangar.  If you are delivering to a Player Owned Station structure, this needs to contain the structure's name.  This field is also used to specify the prefix for corporate bookmarks created using the Corporate Jetcan mode."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</TextEntry>
+
+							<Text name='DropoffSubTypeTitle'> 
+								<X>67%</X> 
+								<Y>3%</Y> 
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Alignment>Center</Alignment>
+								<Text>Dropoff Sub-Type</Text>
+							</Text>
+							<listbox Name="DropoffSubType">
+								<BackgroundColor>FF000000</BackgroundColor>
+								<Border>1</Border>
+								<BorderColor>FFFFFFFF</BorderColor>
+								<X>67%</X>
+								<Y>10%</Y>
+								<Width>32%</Width>
+								<Height>85%</Height>
+								<OnLoad>
+									switch ${Script[ComBot].VariableScope.Salvager.Config.DropoffType}
+									{
+										case Corporation Hangar
+											This:AddItem[Corporation Folder 1]
+											This:AddItem[Corporation Folder 2]
+											This:AddItem[Corporation Folder 3]
+											This:AddItem[Corporation Folder 4]
+											This:AddItem[Corporation Folder 5]
+											This:AddItem[Corporation Folder 6]
+											This:AddItem[Corporation Folder 7]
+											break
+										case Container
+											This:AddItem[Corporation Folder 1]
+											This:AddItem[Corporation Folder 2]
+											This:AddItem[Corporation Folder 3]
+											This:AddItem[Corporation Folder 4]
+											This:AddItem[Corporation Folder 5]
+											This:AddItem[Corporation Folder 6]
+											This:AddItem[Corporation Folder 7]
+											break
+									}
+									This.ItemByText["${Script[ComBot].VariableScope.Salvager.Config.DropoffSubType}"]:Select
+								</OnLoad>
+								<OnSelect>
+									Script[ComBot].VariableScope.Salvager.Config:SetDropoffSubType[${This.SelectedItem.Text}]
+								</OnSelect>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["This field is used to further configure your dropoff type for types that have additional options, like Corporate Hangars."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</listbox>
+
+							<Text name='DropoffTypeTitle'> 
+								<X>1%</X> 
+								<Y>3%</Y> 
+								<Width>32%</Width> 
+								<Height>10%</Height> 
+								<Alignment>Center</Alignment>
+								<Text>Dropoff Location Type</Text>
+							</Text>
+							<listbox Name="DropoffType">
+								<BackgroundColor>FF000000</BackgroundColor>
+								<Border>1</Border>
+								<BorderColor>FFFFFFFF</BorderColor>
+								<X>1%</X>
+								<Y>10%</Y>
+								<Width>32%</Width>
+								<Height>85%</Height>
+								<Items>
+									<Item>Personal Hangar</Item>
+									<Item>Corporation Hangar</Item>
+									<Item>Container</Item>
+									<Item>Fleet Hangar</Item>
+								</Items>
+								<OnLoad>
+									This.ItemByText[${Script[ComBot].VariableScope.Salvager.Config.DropoffType}]:Select
+								</OnLoad>
+								<OnSelect>
+									Script[ComBot].VariableScope.Salvager.Config:SetDropoffType[${This.SelectedItem.Text}]
+									UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:ClearItems
+									switch ${This.SelectedItem.Text}
+									{
+										case Corporation Hangar
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 1]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 2]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 3]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 4]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 5]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 6]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 7]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager].ItemByText["${Script[ComBot].VariableScope.Salvager.Config.DropoffSubType}"]:Select
+											UIElement[DropoffSubTypeTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[Corporate Folder]
+											UIElement[DropoffSubTypeTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+											UIElement[Dropoff_Container@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+											UIElement[Dropoff_ContainerTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+											Script[ComBot].VariableScope.Salvager.Config:SetDropoffContainer[\"\"]
+											UIElement[DropoffTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[Station Bookmark]
+											break
+										case Container
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 1]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 2]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 3]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 4]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 5]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 6]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:AddItem[Corporation Folder 7]
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager].ItemByText["${Script[ComBot].VariableScope.Salvager.Config.DropoffSubType}"]:Select
+											UIElement[DropoffSubTypeTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[Corporate Folder]
+											UIElement[Dropoff_Container@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+											UIElement[Dropoff_ContainerTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[Container Name]
+											UIElement[Dropoff_ContainerTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+											UIElement[DropoffSubTypeTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+											UIElement[DropoffTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[Container Bookmark]
+											break
+										case Fleet Hangar
+											UIElement[Dropoff_Container@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+											UIElement[Dropoff_ContainerTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[Fleet Hangar Pilot Name]
+											UIElement[Dropoff_ContainerTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Show
+											UIElement[DropoffSubTypeTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+											UIElement[DropoffTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[Mining System Bookmark]
+											Script[ComBot].VariableScope.Salvager.Config:SetDropoffSubType[\"\"]
+										case Personal Hangar
+											UIElement[DropoffSubTypeTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+											UIElement[DropoffSubType@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+											Script[ComBot].VariableScope.Salvager.Config:SetDropoffSubType[\"\"]
+											UIElement[Dropoff_Container@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+											UIElement[Dropoff_ContainerTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:Hide
+											Script[ComBot].VariableScope.Salvager.Config:SetDropoffContainer[\"\"]
+											UIElement[DropoffTitle@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[Station Bookmark]
+									}
+									UIElement[Dropoff_Container@DropoffFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[${Script[ComBot].VariableScope.Salvager.Config.DropoffContainer}]
+								</OnSelect>
+								<OnMouseEnter>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText["Use this field to configure where you would like ComBot to unload salvage loot."]
+								</OnMouseEnter>
+								<OnMouseExit>
+									UIElement[Information@InformationFrame@ComBot_DedicatedSalvager_Frame@ComBot_DedicatedSalvager]:SetText[""]
+								</OnMouseExit>
+							</listbox>
+				
+						</Children>
+					</Frame>
+					
+					<Text name='InformationFrameTitle'> 
+						<X>1%</X> 
+						<Y>80%</Y> 
+						<Width>32%</Width> 
+						<Height>4%</Height> 
+						<Text>Information</Text>
+						<OnLoad>
+							This.Font:SetColor[FFFFFF00]
+						</OnLoad>
+					</Text>
+					<Frame name="InformationFrame">
+						<X>0%</X>
+						<Y>82%</Y>
+						<Width>100%</Width>
+						<Height>18%</Height>
+						<BackgroundColor>FF000000</BackgroundColor>
+						<Border>1</Border>
+						<BorderColor>FFFFFFFF</BorderColor>
+						<Children>
+							<Text name='Information'> 
+								<X>5%</X> 
+								<Y>5%</Y> 
+								<Width>90%</Width> 
+								<Height>90%</Height> 
+								<Wrap />
+								<VerticalAlignment>Center</VerticalAlignment>
+							</Text>
+						</Children>
+					</Frame>
+					
+				</Children>
+			</Frame>
+		</Children>
+	</window>
+	
+</ISUI>
