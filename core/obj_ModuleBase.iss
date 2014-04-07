@@ -118,7 +118,7 @@ objectdef obj_ModuleBase inherits obj_State
 				if ${OreType.Find[${Crystal.Value.Name.Token[1, " "]}](exists)}
 				{
 					UI:Update["obj_Module", "Switching Crystal to ${Crystal.Value.Name}"]
-					Me.Ship.Module[${ModuleID}]:ChangeAmmo[${Crystal.Value.ID},1]
+					MyShip.Module[${ModuleID}]:ChangeAmmo[${Crystal.Value.ID},1]
 					return TRUE
 				}
 			}

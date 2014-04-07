@@ -125,13 +125,13 @@ objectdef obj_Cargo inherits obj_State
 		switch ${location} 
 		{
 			case Ship
-				Me.Ship:GetCargo[CargoList]
+				MyShip:GetCargo[CargoList]
 				break
 			case ShipCorpHangar
-				Me.Ship:GetFleetHangarCargo[CargoList]
+				MyShip:GetFleetHangarCargo[CargoList]
 				break
 			case OreHold
-				Me.Ship:GetOreHoldCargo[CargoList]
+				MyShip:GetOreHoldCargo[CargoList]
 				break
 			case CONTAINERCORPORATEHANGAR
 				Entity[${ID}]:GetCorpHangarsCargo[CargoList]

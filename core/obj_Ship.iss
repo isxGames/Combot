@@ -102,9 +102,9 @@ objectdef obj_Ship inherits obj_State
 			}
 			while ${List:Next(exists)}		
 
-		Me.Ship:GetModules[ModuleList]
+		MyShip:GetModules[ModuleList]
 
-		if !${ModuleList.Used} && ${Me.Ship.HighSlots} > 0
+		if !${ModuleList.Used} && ${MyShip.HighSlots} > 0
 		{
 			UI:Update["Ship", "UpdateModuleList - No modules found. Retrying in a few seconds", "o"]
 			UI:Update["Ship", "If this ship has slots, you must have at least one module equipped, of any type.", "o"]
